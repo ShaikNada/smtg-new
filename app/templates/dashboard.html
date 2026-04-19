@@ -1,8 +1,6 @@
 {% extends "base.html" %}
 
 {% block content %}
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
     .db-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; margin-bottom: 22px; }
@@ -192,15 +190,19 @@
 
 <!-- ── ROW 3 — Telangana Map  +  District vs Crimes ── -->
 <div class="db-grid-equal">
-    <!-- Telangana Heatmap -->
-    <div class="panel">
-        <div class="panel-header"><i class="fas fa-map-marked-alt"></i> Telangana District Crime Heatmap</div>
-        <div id="districtMap" style="height:420px;"></div>
-        <div class="legend-box">
-            <div class="legend-item"><div class="legend-swatch" style="background:#ef4444;"></div> Critical (&gt;75%)</div>
-            <div class="legend-item"><div class="legend-swatch" style="background:#f59e0b;"></div> Moderate (50–75%)</div>
-            <div class="legend-item"><div class="legend-swatch" style="background:#3b82f6;"></div> Low (25–50%)</div>
-            <div class="legend-item"><div class="legend-swatch" style="background:#10b981;"></div> Safe (&lt;25%)</div>
+    <!-- Geospatial Crime Analysis (Folium iframe) -->
+    <div class="panel" style="overflow:hidden;">
+        <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center;">
+            <span><i class="fas fa-map-marked-alt"></i> Geospatial Crime Analysis</span>
+            <span style="font-size:0.7rem; color:var(--text-muted); background:rgba(255,255,255,0.05); padding:3px 10px; border-radius:20px; font-weight:400; letter-spacing:0;">Interactive Map</span>
+        </div>
+        <div style="width:100%; height:460px; position:relative;">
+            <iframe
+                src="/static/crime_map.html"
+                style="width:100%; height:100%; border:0;"
+                title="Telangana Crime Map"
+                loading="lazy"
+            ></iframe>
         </div>
     </div>
 
@@ -272,84 +274,6 @@
                 }
             }
         });
-    }
-
-    // ── Telangana District Map (with per-type tooltips) ──
-    const mapEl = document.getElementById('districtMap');
-    if (mapEl && Object.keys(districtCrimeData).length > 0) {
-        const map = L.map('districtMap', { zoomControl: true, scrollWheelZoom: true })
-                      .setView([17.85, 79.12], 7);
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-            attribution: '&copy; OSM &copy; CARTO', subdomains: 'abcd', maxZoom: 19
-        }).addTo(map);
-
-        const maxCount = Math.max(...Object.values(districtCrimeData));
-        function getColor(count) {
-            const t = count / maxCount;
-            if (t > 0.75) return '#ef4444';
-            if (t > 0.5)  return '#f59e0b';
-            if (t > 0.25) return '#3b82f6';
-            return '#10b981';
-        }
-        function buildTooltipHtml(rawName, name) {
-            const total = districtCrimeData[name] || 0;
-            const color = getColor(total);
-            let html = `<strong style="font-size:.9rem;color:#fff;">${rawName}</strong><br>`;
-            const crimes = districtByType[name];
-            if (crimes) {
-                const entries = Object.entries(crimes).filter(([k]) => k !== 'TOTAL').sort((a,b) => b[1]-a[1]);
-                entries.forEach(([k, v]) => {
-                    html += `<span style="color:#94a3b8;">${k}:</span> <strong style="color:#e2e8f0;">${v.toLocaleString()}</strong><br>`;
-                });
-            }
-            html += `<span style="color:#94a3b8;">Total:</span> <strong style="color:${color};">${total.toLocaleString()}</strong>`;
-            return html;
-        }
-
-        // Pre-load per-type data
-        fetch('/api/district-crimes').then(r => r.json()).then(d => { districtByType = d; }).catch(()=>{});
-
-        fetch('/api/telangana-geojson')
-            .then(r => r.json())
-            .then(geo => {
-                const geojsonLayer = L.geoJson(geo, {
-                    style: feat => {
-                        const name = (feat.properties.D_N || '').toUpperCase();
-                        return {
-                            fillColor: getColor(districtCrimeData[name] || 0),
-                            fillOpacity: 0.72, color: 'rgba(255,255,255,0.25)', weight: 1.2
-                        };
-                    },
-                    onEachFeature: (feat, layer) => {
-                        const rawName = feat.properties.D_N || 'UNKNOWN';
-                        const name = rawName.toUpperCase();
-                        layer.bindTooltip(() => buildTooltipHtml(rawName, name),
-                            { sticky: true, opacity: 1, className: 'leaflet-tooltip-dark' });
-                        layer.on({
-                            mouseover(e) { e.target.setStyle({ fillOpacity: 0.92, weight: 2.5, color: '#fff' }); },
-                            mouseout(e)  { geojsonLayer.resetStyle(e.target); }
-                        });
-                    }
-                }).addTo(map);
-
-                // Permanent district name labels
-                geo.features.forEach(feat => {
-                    try {
-                        const latlng = L.geoJson(feat).getBounds().getCenter();
-                        const rawName = feat.properties.D_N || '';
-                        L.marker(latlng, {
-                            icon: L.divIcon({
-                                className: 'district-label',
-                                html: `<span style="font-size:8.5px;font-weight:800;color:#000;text-shadow:0 0 4px #fff,0 0 4px #fff;white-space:nowrap;pointer-events:none;">${rawName}</span>`,
-                                iconSize: [80, 14], iconAnchor: [40, 7]
-                            }),
-                            interactive: false
-                        }).addTo(map);
-                    } catch(e) {}
-                });
-                map.fitBounds(geojsonLayer.getBounds(), { padding: [10, 10] });
-            })
-            .catch(err => console.error('Map error:', err));
     }
 </script>
 {% endblock %}

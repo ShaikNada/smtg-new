@@ -69,8 +69,8 @@
         <div style="font-weight:700; letter-spacing:2px;">RUNNING LINEAR REGRESSION MODELS...</div>
     </div>
 
-    <!-- ML Content (shown after load) -->
-    <div id="mlContent" style="display:none;">
+    <!-- ML Content Top (shown after load) -->
+    <div id="mlContentTop" style="display:none;">
 
         <!-- ML Forecast Bar Chart + Trend Lines side by side -->
         <div
@@ -104,7 +104,48 @@
                 </div>
             </div>
         </div>
+    </div>
 
+    <!-- ═══════════════════════════════════════════════════════════════
+         SECTION 3: DISTRICT INTELLIGENCE — Shifted here
+    ═══════════════════════════════════════════════════════════════ -->
+    <div style="margin-top:0px; margin-bottom:12px; display:flex; align-items:center; gap:12px;">
+        <div style="height:2px; flex:1; background:linear-gradient(90deg, var(--accent-amber,#f59e0b), transparent);"></div>
+        <span style="color:var(--accent-amber,#f59e0b); font-size:0.75rem; font-weight:800; letter-spacing:2px;">DISTRICT INTELLIGENCE</span>
+        <div style="height:2px; flex:1; background:linear-gradient(270deg, var(--accent-amber,#f59e0b), transparent);"></div>
+    </div>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-bottom:30px;">
+        <!-- District vs Crimes horizontal bar -->
+        <div class="glass-card chart-container-inner" style="display: flex; flex-direction: column;">
+            <div class="section-header" style="padding:22px 22px 0;">
+                <h3><i class="fas fa-chart-bar"></i> DISTRICT VS TOTAL CRIMES</h3>
+            </div>
+            <div style="padding:14px 22px 22px; flex: 1;">
+                <div style="position:relative; height:480px; width:100%;">
+                    <canvas id="districtBarChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Geospatial Crime Analysis (Folium Map iframe) -->
+        <div class="glass-card chart-container-inner" style="overflow:hidden; display: flex; flex-direction: column;">
+            <div class="section-header" style="padding:22px 22px 14px; display: flex; justify-content: space-between; align-items: center;">
+                <h3><i class="fas fa-map-marked-alt"></i> GEOSPATIAL CRIME ANALYSIS</h3>
+                <span style="font-size: 0.75rem; color: var(--text-muted); background: rgba(255,255,255,0.05); padding: 4px 10px; border-radius: 20px;">Interactive Map</span>
+            </div>
+            <div style="width: 100%; height: 480px; position:relative; flex: 1;">
+                <iframe
+                    src="/static/crime_map.html"
+                    style="width: 100%; height: 100%; border: 0;"
+                    title="Telangana Crime Map"
+                    loading="lazy"
+                ></iframe>
+            </div>
+        </div>
+    </div>
+
+    <div id="mlContentBottom" style="display:none;">
         <!-- ML Model Accuracy Cards -->
         <div id="mlModelCards" class="metrics-row-grid" style="margin-bottom: 30px;"></div>
 
@@ -155,43 +196,6 @@
             <div class="stat-label">HIGH-RISK ALERTS <i class="fas fa-info-circle info-icon"></i></div>
             <div class="stat-value counter" data-target="{{ open_cases }}" style="color: var(--accent-red);">0</div>
             <div class="stat-detail"><i class="fas fa-exclamation-triangle"></i> Action Required</div>
-        </div>
-    </div>
-
-    <!-- ═══════════════════════════════════════════════════════════════
-         SECTION 3: DISTRICT INTELLIGENCE — below the ML charts
-    ═══════════════════════════════════════════════════════════════ -->
-    <div style="margin-top:30px; margin-bottom:12px; display:flex; align-items:center; gap:12px;">
-        <div style="height:2px; flex:1; background:linear-gradient(90deg, var(--accent-amber,#f59e0b), transparent);"></div>
-        <span style="color:var(--accent-amber,#f59e0b); font-size:0.75rem; font-weight:800; letter-spacing:2px;">DISTRICT INTELLIGENCE</span>
-        <div style="height:2px; flex:1; background:linear-gradient(270deg, var(--accent-amber,#f59e0b), transparent);"></div>
-    </div>
-
-    <div style="display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-bottom:30px;">
-        <!-- District vs Crimes horizontal bar -->
-        <div class="glass-card chart-container-inner">
-            <div class="section-header" style="padding:22px 22px 0;">
-                <h3><i class="fas fa-chart-bar"></i> DISTRICT VS CRIMES</h3>
-            </div>
-            <div style="padding:14px 22px 22px;">
-                <div style="position:relative; height:380px; width:100%;">
-                    <canvas id="districtBarChart"></canvas>
-                </div>
-            </div>
-        </div>
-
-        <!-- Telangana Map -->
-        <div class="glass-card chart-container-inner" style="overflow:hidden;">
-            <div class="section-header" style="padding:22px 22px 14px;">
-                <h3><i class="fas fa-map-marked-alt"></i> TELANGANA DISTRICT HEATMAP</h3>
-            </div>
-            <div id="districtMap" style="height:380px;"></div>
-            <div style="display:flex; flex-wrap:wrap; gap:10px; padding:10px 22px 16px; font-size:.72rem; color:var(--text-muted);">
-                <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#ef4444;margin-right:4px;"></span>Critical</span>
-                <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#f59e0b;margin-right:4px;"></span>Moderate</span>
-                <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#3b82f6;margin-right:4px;"></span>Low</span>
-                <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#10b981;margin-right:4px;"></span>Safe</span>
-            </div>
         </div>
     </div>
 </div>
@@ -796,7 +800,8 @@
     async function loadMLData() {
         const year = document.getElementById('predictYearSelect').value;
         document.getElementById('mlLoadingState').style.display = 'block';
-        document.getElementById('mlContent').style.display = 'none';
+        if (document.getElementById('mlContentTop')) document.getElementById('mlContentTop').style.display = 'none';
+        if (document.getElementById('mlContentBottom')) document.getElementById('mlContentBottom').style.display = 'none';
         document.getElementById('mlPredictLabel').textContent = `Year: ${year}`;
 
         try {
@@ -813,7 +818,8 @@
 
     function renderMLCharts(data) {
         document.getElementById('mlLoadingState').style.display = 'none';
-        document.getElementById('mlContent').style.display = 'block';
+        if (document.getElementById('mlContentTop')) document.getElementById('mlContentTop').style.display = 'block';
+        if (document.getElementById('mlContentBottom')) document.getElementById('mlContentBottom').style.display = 'block';
 
         // ── Destroy previous chart instances to avoid canvas reuse error ──
         if (mlForecastChart) { mlForecastChart.destroy(); mlForecastChart = null; }
@@ -1040,7 +1046,7 @@
 
         const sortedDistricts = Object.entries(districtCrimeData)
             .sort((a, b) => b[1] - a[1])
-            .slice(0, 15);
+            .slice(0, 13);
 
         districtBarChart = new Chart(ctx, {
             type: 'bar',
@@ -1051,22 +1057,53 @@
                     data: sortedDistricts.map(d => d[1]),
                     backgroundColor: sortedDistricts.map((d, i, arr) => {
                         const t = d[1] / arr[0][1];
-                        if (t > 0.75) return 'rgba(239,68,68,0.75)';
-                        if (t > 0.5)  return 'rgba(245,158,11,0.75)';
-                        if (t > 0.25) return 'rgba(59,130,246,0.75)';
-                        return 'rgba(16,185,129,0.75)';
+                        if (t > 0.75) return 'rgba(239,68,68,0.85)';
+                        if (t > 0.5)  return 'rgba(245,158,11,0.85)';
+                        if (t > 0.25) return 'rgba(59,130,246,0.85)';
+                        return 'rgba(16,185,129,0.85)';
                     }),
-                    borderRadius: 5,
-                    borderWidth: 0
+                    borderColor: sortedDistricts.map((d, i, arr) => {
+                        const t = d[1] / arr[0][1];
+                        if (t > 0.75) return '#ef4444';
+                        if (t > 0.5)  return '#f59e0b';
+                        if (t > 0.25) return '#3b82f6';
+                        return '#10b981';
+                    }),
+                    borderWidth: 1,
+                    borderRadius: 4,
+                    borderSkipped: false,
                 }]
             },
             options: {
-                responsive: true, maintainAspectRatio: false,
-                indexAxis: 'y',
-                plugins: { legend: { display: false } },
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => ` ${ctx.parsed.y.toLocaleString()} crimes`
+                        }
+                    }
+                },
                 scales: {
-                    x: { grid: { color: 'rgba(255,255,255,0.04)' }, beginAtZero: true, ticks: { color: '#94a3b8', font: { size: 10 } } },
-                    y: { grid: { display: false }, ticks: { color: '#e2e8f0', font: { size: 10 } } }
+                    x: {
+                        grid: { color: 'rgba(255,255,255,0.04)' },
+                        ticks: {
+                            color: '#94a3b8',
+                            font: { size: 9, weight: '600' },
+                            maxRotation: 45,
+                            minRotation: 45,
+                        }
+                    },
+                    y: {
+                        grid: { color: 'rgba(255,255,255,0.05)' },
+                        beginAtZero: true,
+                        ticks: {
+                            color: '#94a3b8',
+                            font: { size: 10 },
+                            callback: val => val >= 1000 ? (val/1000).toFixed(0) + 'k' : val
+                        }
+                    }
                 }
             }
         });

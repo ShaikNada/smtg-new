@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -7,45 +8,205 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
   <link rel="stylesheet" href="/static/style.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    /* Compact sidebar overrides for whole website */
+    .sidebar {
+      width: 220px !important;
+      padding: 2px 10px !important;
+      box-sizing: border-box;
+      height: calc(100vh - 20px) !important;
+      min-height: calc(100vh - 20px) !important;
+      top: 10px !important;
+      left: 10px !important;
+      border-radius: 18px !important;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .sidebar-brand {
+      padding: 6px 4px 10px 4px !important;
+      margin-bottom: 4px !important;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .brand-icon {
+      width: 38px !important;
+      height: 38px !important;
+      min-width: 38px !important;
+      min-height: 38px !important;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 12px !important;
+    }
+
+    .brand-name {
+      font-size: 0.92rem !important;
+      line-height: 1.05 !important;
+    }
+
+    .sidebar-nav {
+      display: flex;
+      flex-direction: column;
+      gap: 4px !important;
+      margin-top: 4px !important;
+    }
+
+    .sidebar-footer {
+      display: flex;
+      flex-direction: column;
+      gap: 4px !important;
+      margin-top: 8px !important;
+      padding-top: 8px !important;
+    }
+
+    .nav-item {
+      padding: 6px 10px !important;
+      min-height: 38px !important;
+      border-radius: 10px !important;
+      font-size: 0.8rem !important;
+      display: flex;
+      align-items: center;
+      gap: 8px !important;
+    }
+
+    .nav-item i {
+      width: 14px;
+      text-align: center;
+      font-size: 0.85rem !important;
+    }
+
+    .main-content {
+      margin-left: 240px !important;
+      width: calc(100% - 240px) !important;
+      box-sizing: border-box;
+    }
+
+    .top-header {
+      min-height: 68px !important;
+    }
+
+    .notification-link {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 1.05rem;
+      cursor: pointer;
+      transition: 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .notification-link:hover {
+      color: #fff;
+      transform: translateY(-1px);
+    }
+
+    @media (max-width: 1100px) {
+      .sidebar {
+        width: 205px !important;
+      }
+
+      .main-content {
+        margin-left: 225px !important;
+        width: calc(100% - 225px) !important;
+      }
+
+      .nav-item {
+        font-size: 0.76rem !important;
+        padding: 8px 9px !important;
+      }
+
+      .nav-item span {
+        font-size: 0.76rem !important;
+      }
+    }
+
+    @media (max-width: 900px) {
+      .sidebar {
+        width: 190px !important;
+        padding: 10px 8px !important;
+      }
+
+      .main-content {
+        margin-left: 208px !important;
+        width: calc(100% - 208px) !important;
+      }
+
+      .brand-name {
+        font-size: 0.85rem !important;
+      }
+
+      .nav-item {
+        font-size: 0.72rem !important;
+        padding: 7px 8px !important;
+        min-height: 34px !important;
+        gap: 6px !important;
+      }
+
+      .nav-item span {
+        font-size: 0.72rem !important;
+      }
+
+      .nav-item i {
+        font-size: 0.78rem !important;
+        width: 13px;
+      }
+    }
+  </style>
 </head>
+
 <body>
   <div class="sidebar">
-    <div class="sidebar-brand">
-      <div class="brand-icon">
-        <i class="fas fa-shield-alt text-white"></i>
+    <div>
+      <div class="sidebar-brand">
+        <div class="brand-icon">
+          <i class="fas fa-shield-alt text-white"></i>
+        </div>
+        <div>
+          <div class="brand-name">CIRIS</div>
+          <div style="font-size: 0.62rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.7px;">
+            Crime Intelligence
+          </div>
+        </div>
       </div>
-      <div>
-        <div class="brand-name">CIRIS</div>
-        <div style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase;">Crime Intelligence</div>
-      </div>
-    </div>
 
-    <nav class="sidebar-nav">
-      <a href="/dashboard" class="nav-item">
-        <i class="fas fa-th-large"></i>
-        <span>Dashboard</span>
-      </a>
-      <a href="/firs" class="nav-item">
-        <i class="fas fa-file-alt"></i>
-        <span>FIR Management</span>
-      </a>
-      <a href="/analytics" class="nav-item">
-        <i class="fas fa-chart-line"></i>
-        <span>Crime Analytics</span>
-      </a>
-      <a href="/monitoring" class="nav-item">
-        <i class="fas fa-video"></i>
-        <span>Monitoring</span>
-      </a>
-      <a href="/evidence" class="nav-item">
-        <i class="fas fa-folder-open"></i>
-        <span>Evidence</span>
-      </a>
-      <a href="/image-enhancement" class="nav-item">
-        <i class="fas fa-image"></i>
-        <span>Image Enhancement</span>
-      </a>
-    </nav>
+      <nav class="sidebar-nav">
+        <a href="/dashboard" class="nav-item">
+          <i class="fas fa-th-large"></i>
+          <span>Dashboard</span>
+        </a>
+        <a href="/firs" class="nav-item">
+          <i class="fas fa-file-alt"></i>
+          <span>FIR Management</span>
+        </a>
+        <a href="/analytics" class="nav-item">
+          <i class="fas fa-chart-line"></i>
+          <span>Crime Analytics</span>
+        </a>
+        <a href="/monitoring" class="nav-item">
+          <i class="fas fa-video"></i>
+          <span>Monitoring</span>
+        </a>
+        <a href="/notifications" class="nav-item">
+          <i class="fas fa-bell"></i>
+          <span>Notifications</span>
+        </a>
+        <a href="/evidence" class="nav-item">
+          <i class="fas fa-folder-open"></i>
+          <span>Evidence</span>
+        </a>
+        <a href="/image-enhancement" class="nav-item">
+          <i class="fas fa-image"></i>
+          <span>Image Enhancement</span>
+        </a>
+      </nav>
+    </div>
 
     <div class="sidebar-footer">
       <a href="/settings" class="nav-item">
@@ -60,20 +221,19 @@
   </div>
 
   <div class="main-content">
-    <header class="top-header">
-      <div class="search-container">
-        <input type="text" class="search-bar" placeholder="Search cases, FIRs, evidence...">
-      </div>
-
+    <header class="top-header" style="justify-content: flex-end;">
       <div class="header-right">
         <div class="badge-live">
           <div class="pulse"></div>
           <span>LIVE</span>
         </div>
-        <div style="font-size: 1.2rem; color: var(--text-muted); cursor: pointer;">
+
+        <a href="/notifications" class="notification-link" title="Notifications">
           <i class="far fa-bell"></i>
-        </div>
-        <div style="display: flex; align-items: center; gap: 10px; padding-left: 10px; border-left: 1px solid var(--border-color);">
+        </a>
+
+        <div
+          style="display: flex; align-items: center; gap: 10px; padding-left: 10px; border-left: 1px solid var(--border-color);">
           <div style="background: var(--accent-blue); padding: 5px 10px; border-radius: 50%;">
             <i class="fas fa-user-shield"></i>
           </div>
@@ -89,7 +249,6 @@
   </div>
 
   <script>
-    // Set active nav item based on current path
     const path = window.location.pathname;
     document.querySelectorAll('.nav-item').forEach(item => {
       if (item.getAttribute('href') === path) {
@@ -98,4 +257,5 @@
     });
   </script>
 </body>
+
 </html>

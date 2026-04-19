@@ -19,6 +19,12 @@ class FIR(Base):
     priority = Column(String(50), nullable=False, default="Medium")
     status = Column(String(50), nullable=False, default="Open")
 
+    # Analytics-specific fields (inspired by Indian Crimes Dataset)
+    weapon_used = Column(String(120), nullable=True)
+    victim_age = Column(Integer, nullable=True)
+    victim_gender = Column(String(10), nullable=True)
+    reported_at = Column(DateTime, nullable=True)
+
     complainant_name = Column(String(120), nullable=True)
     accused_name = Column(String(120), nullable=True)
     location_text = Column(String(255), nullable=True)

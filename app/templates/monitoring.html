@@ -1,0 +1,1119 @@
+{% extends "base.html" %}
+
+{% block content %}
+<link rel="stylesheet" href="https://unpkg.com/tippy.js@6/dist/tippy.css" />
+<script src="https://unpkg.com/@popperjs/core@2"></script>
+<script src="https://unpkg.com/tippy.js@6"></script>
+
+<div class="monitoring-container"
+    style="animation: fadeIn 0.8s ease-out; padding: 25px; box-sizing: border-box; width: 100%;">
+    <div class="monitoring-header"
+        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; gap: 20px; flex-wrap: wrap;">
+        <div>
+            <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+                <h1
+                    style="font-size: clamp(1.8rem, 4vw, 2.4rem); font-weight: 800; letter-spacing: -1px; margin: 0; color: #fff;">
+                    AI SURVEILLANCE <span style="font-weight: 300; opacity: 0.8;">LABS</span>
+                </h1>
+
+                <div class="badge-status-pro status-disconnected" id="wsStatusBadge">
+                    <i class="fas fa-satellite-dish"></i> DISCONNECTED
+                </div>
+            </div>
+
+            <div
+                style="font-size: 0.85rem; color: var(--text-muted); margin-top: 8px; letter-spacing: 1px; text-transform: uppercase; font-weight: 600;">
+                <i class="fas fa-network-wired"></i>
+                {{ model_name }} ·
+                <span style="color: var(--accent-blue);">REAL YOLO OBJECT DETECTION · 8 CAMERA VIEW</span>
+            </div>
+        </div>
+
+        <div class="control-row">
+            <div class="control-group">
+                <label class="control-label">Select Camera</label>
+                <select id="cameraSelect" class="premium-select">
+                    <option value="cam1">CAM-01 · Panjagutta Signal</option>
+                    <option value="cam2">CAM-02 · Hitech City Junction</option>
+                    <option value="cam3">CAM-03 · Charminar Crossroad</option>
+                    <option value="cam4">CAM-04 · Secunderabad Rly</option>
+                    <option value="cam5">CAM-05 · Mehdipatnam Signal</option>
+                    <option value="cam6">CAM-06 · KPHB Colony Road</option>
+                    <option value="cam7">CAM-07 · Dilsukhnagar Bus Stop</option>
+                    <option value="cam8">CAM-08 · Jubilee Hills Check Post</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label class="control-label">Location / Zone</label>
+                <select id="locationSelect" class="premium-select">
+                    <option value="Panjagutta Signal, Hyderabad">Panjagutta Signal</option>
+                    <option value="Hitech City Junction, Hyderabad">Hitech City Junction</option>
+                    <option value="Charminar Crossroad, Hyderabad">Charminar Crossroad</option>
+                    <option value="Secunderabad Railway Station, Hyderabad">Secunderabad Rly Station</option>
+                    <option value="Mehdipatnam Signal, Hyderabad">Mehdipatnam Signal</option>
+                    <option value="KPHB Colony Road, Hyderabad">KPHB Colony Road</option>
+                    <option value="Dilsukhnagar Bus Stop, Hyderabad">Dilsukhnagar Bus Stop</option>
+                    <option value="Jubilee Hills Check Post, Hyderabad">Jubilee Hills Check Post</option>
+                    <option value="Abids Circle, Hyderabad">Abids Circle</option>
+                    <option value="LB Nagar Signal, Hyderabad">LB Nagar Signal</option>
+                    <option value="Ameerpet Metro Junction, Hyderabad">Ameerpet Metro Junction</option>
+                    <option value="Begumpet Airport Road, Hyderabad">Begumpet Airport Road</option>
+                    <option value="Nampally Station Road, Hyderabad">Nampally Station Road</option>
+                    <option value="Tolichowki Signal, Hyderabad">Tolichowki Signal</option>
+                    <option value="Kukatpally Housing Board, Hyderabad">Kukatpally Housing Board</option>
+                    <option value="Saroor Nagar Signal, Hyderabad">Saroor Nagar Signal</option>
+                </select>
+            </div>
+
+            <label class="btn-premium secondary" style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                <i class="fas fa-upload"></i> Upload Video
+                <input type="file" id="videoUpload" accept="video/*" hidden>
+            </label>
+
+            <button class="btn-premium" id="connectBtn" onclick="startMonitoring()">
+                <i class="fas fa-play"></i> Start Monitor
+            </button>
+
+            <button class="btn-premium secondary" id="disconnectBtn" onclick="stopMonitoring()">
+                <i class="fas fa-stop"></i> Stop
+            </button>
+
+            <a href="/notifications" class="btn-premium secondary"
+                style="display:flex; align-items:center; gap:8px; text-decoration:none;">
+                <i class="fas fa-bell"></i> Notifications
+            </a>
+        </div>
+    </div>
+
+    <div class="monitor-grid">
+        <!-- Main Camera Wall -->
+        <div class="monitor-main">
+            <div class="camera-wall" id="cameraWall"></div>
+        </div>
+
+        <!-- Right Sidebar -->
+        <div class="monitor-sidebar">
+            <div class="glass-card" style="margin-bottom: 20px;">
+                <h3 class="side-title"><i class="fas fa-info-circle"></i> SESSION</h3>
+                <div class="telemetry-grid">
+                    <div class="tel-item">Status <strong id="sessionStatus">Idle</strong></div>
+                    <div class="tel-item">Frame <strong id="frameText">0 / 0</strong></div>
+                    <div class="tel-item">Active Camera <strong id="activeCameraText">CAM-01</strong></div>
+                    <div class="tel-item">Location <strong id="activeLocationText">Main Gate</strong></div>
+                </div>
+
+                <div class="progress-wrap">
+                    <div class="progress-fill" id="sessionProgressFill" style="width:0%;"></div>
+                </div>
+            </div>
+
+            <div class="glass-card matrix-card">
+                <h3 class="side-title"><i class="fas fa-cubes"></i> OBJECT COUNTS</h3>
+                <div class="matrix-list">
+                    <div class="matrix-item"><span>PERSON</span> <strong class="prob-val" id="count-person">0</strong>
+                    </div>
+                    <div class="matrix-item"><span>BACKPACK</span> <strong class="prob-val"
+                            id="count-backpack">0</strong></div>
+                    <div class="matrix-item"><span>HANDBAG</span> <strong class="prob-val" id="count-handbag">0</strong>
+                    </div>
+                    <div class="matrix-item"><span>MOTORCYCLE</span> <strong class="prob-val"
+                            id="count-motorcycle">0</strong></div>
+                    <div class="matrix-item"><span>VEHICLES</span> <strong class="prob-val"
+                            id="count-vehicle">0</strong></div>
+                </div>
+            </div>
+
+            <div class="glass-card log-card" style="margin-top: 20px;">
+                <h3 class="side-title"><i class="fas fa-exclamation-circle"></i> CRIME QUEUE</h3>
+                <div id="detectionQueue" class="severity-queue">
+                    <div class="queue-empty">No crime detections yet.</div>
+                </div>
+            </div>
+
+            <div class="glass-card log-card" style="margin-top: 20px;">
+                <h3 class="side-title"><i class="fas fa-terminal"></i> EVENT LOG</h3>
+                <div class="event-log-content" id="eventLog">
+                    <div class="log-entry">SYSTEM READY.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
+
+    :root {
+        --accent-blue: #3b82f6;
+        --accent-green: #10b981;
+        --accent-red: #ef4444;
+        --accent-orange: #f59e0b;
+        --primary-bg: #0b1120;
+        --text-muted: #94a3b8;
+    }
+
+    body {
+        font-family: 'Space Grotesk', sans-serif;
+        background-color: var(--primary-bg);
+    }
+
+    .monitoring-container {
+        min-height: calc(100vh - 100px);
+    }
+
+    .glass-card {
+        background: rgba(30, 41, 59, 0.45);
+        backdrop-filter: blur(15px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 20px;
+        padding: 20px;
+        box-sizing: border-box;
+    }
+
+    .monitor-grid {
+        display: grid;
+        grid-template-columns: 1fr 320px;
+        gap: 20px;
+        align-items: start;
+    }
+
+    .camera-wall {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 20px;
+        align-items: start;
+    }
+
+    @media (max-width: 1500px) {
+        .monitor-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 900px) {
+        .camera-wall {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .control-row {
+        display: flex;
+        align-items: end;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    .control-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        min-width: 170px;
+    }
+
+    .control-label {
+        font-size: 0.72rem;
+        color: var(--text-muted);
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+    }
+
+    .premium-select {
+        background: rgba(255, 255, 255, 0.05);
+        color: #fff;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 12px;
+        padding: 12px 14px;
+        outline: none;
+        font-weight: 600;
+    }
+
+    .premium-select option {
+        color: #111827;
+    }
+
+    .side-title {
+        font-size: 0.85rem;
+        color: #fff;
+        margin: 0 0 15px 0;
+        letter-spacing: 1px;
+        font-weight: 700;
+        opacity: 0.9;
+    }
+
+    .telemetry-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+    }
+
+    .tel-item {
+        border-radius: 8px;
+        background: rgba(0, 0, 0, 0.2);
+        padding: 10px;
+        font-size: 0.7rem;
+        color: var(--text-muted);
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .tel-item strong {
+        color: #fff;
+        font-size: 0.85rem;
+    }
+
+    .progress-wrap {
+        width: 100%;
+        height: 8px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.08);
+        margin-top: 14px;
+        overflow: hidden;
+    }
+
+    .progress-fill {
+        height: 100%;
+        background: var(--accent-blue);
+        transition: width 0.25s ease;
+    }
+
+    .camera-card {
+        padding: 14px;
+        transition: 0.25s ease;
+        cursor: pointer;
+    }
+
+    .camera-card:hover {
+        transform: translateY(-2px);
+        border-color: rgba(59, 130, 246, 0.22);
+    }
+
+    .active-camera {
+        border: 1px solid rgba(59, 130, 246, 0.55);
+        box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.18), 0 10px 30px rgba(59, 130, 246, 0.15);
+    }
+
+    .camera-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+        gap: 12px;
+    }
+
+    .cam-title {
+        color: #fff;
+        font-weight: 800;
+        font-size: 0.9rem;
+        letter-spacing: 0.6px;
+    }
+
+    .cam-subtitle {
+        color: var(--text-muted);
+        font-size: 0.75rem;
+        margin-top: 4px;
+    }
+
+    .cam-badge {
+        font-size: 0.68rem;
+        font-weight: 800;
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.07);
+        color: #fff;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        white-space: nowrap;
+    }
+
+    .video-container-pro {
+        position: relative;
+        width: 100%;
+        height: 300px;
+        background: #000;
+        border-radius: 16px;
+        overflow: hidden;
+    }
+
+    .ai-overlay {
+        position: absolute;
+        inset: 0;
+        z-index: 10;
+        pointer-events: none;
+    }
+
+    .hud-top-left {
+        position: absolute;
+        top: 16px;
+        left: 16px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.7rem;
+        color: var(--accent-blue);
+        text-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    }
+
+    .channel-info {
+        font-weight: 700;
+        margin-bottom: 5px;
+    }
+
+    .hud-top-right {
+        position: absolute;
+        top: 16px;
+        right: 16px;
+    }
+
+    .alert-box {
+        background: rgba(239, 68, 68, 0.88);
+        color: white;
+        padding: 8px 14px;
+        border-radius: 6px;
+        font-weight: 800;
+        font-size: 0.74rem;
+        animation: alertPulse 0.5s infinite alternate;
+        box-shadow: 0 8px 30px rgba(239, 68, 68, 0.3);
+    }
+
+    @keyframes alertPulse {
+        from {
+            transform: scale(1);
+            opacity: 1;
+        }
+
+        to {
+            transform: scale(1.05);
+            opacity: 0.85;
+        }
+    }
+
+    .hud-bottom-left {
+        position: absolute;
+        bottom: 18px;
+        left: 18px;
+        width: min(82%, 300px);
+        font-family: 'JetBrains Mono', monospace;
+    }
+
+    .action-tag {
+        font-weight: 700;
+        color: #fff;
+        font-size: 0.78rem;
+        margin-bottom: 8px;
+    }
+
+    .confidence-bar-wrap {
+        height: 6px;
+        background: rgba(255, 255, 255, 0.12);
+        border-radius: 999px;
+        overflow: hidden;
+    }
+
+    .confidence-fill {
+        height: 100%;
+        background: var(--accent-blue);
+        transition: width 0.25s ease, background-color 0.25s ease;
+    }
+
+    .hud-meta {
+        display: flex;
+        gap: 18px;
+        margin-top: 8px;
+        font-size: 0.68rem;
+        color: #cbd5e1;
+        flex-wrap: wrap;
+    }
+
+    .summary-box {
+        margin-top: 12px;
+        font-size: 0.68rem;
+        color: #e2e8f0;
+        line-height: 1.4;
+        background: rgba(15, 23, 42, 0.65);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 12px;
+        padding: 10px 12px;
+    }
+
+    .bbox-layer {
+        position: absolute;
+        inset: 0;
+    }
+
+    .bbox {
+        position: absolute;
+        border: 1.5px solid var(--accent-blue);
+        box-shadow: 0 0 10px rgba(59, 130, 246, 0.28);
+        z-index: 11;
+        transition: all 0.15s ease;
+    }
+
+    .bbox-label {
+        position: absolute;
+        top: -22px;
+        left: -2px;
+        color: white;
+        font-size: 0.58rem;
+        padding: 2px 6px;
+        font-weight: 700;
+        white-space: nowrap;
+        border-radius: 6px 6px 6px 0;
+    }
+
+    .matrix-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .matrix-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.02);
+        font-size: 0.75rem;
+    }
+
+    .matrix-item span {
+        color: var(--text-muted);
+        font-weight: 600;
+        letter-spacing: 0.5px;
+    }
+
+    .prob-val {
+        color: var(--accent-blue);
+        font-family: 'JetBrains Mono', monospace;
+    }
+
+    .severity-queue {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        max-height: 240px;
+        overflow-y: auto;
+    }
+
+    .queue-item {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-left: 4px solid var(--accent-red);
+        border-radius: 10px;
+        padding: 10px;
+        font-size: 0.72rem;
+    }
+
+    .queue-title {
+        color: #fff;
+        font-weight: 700;
+        margin-bottom: 4px;
+    }
+
+    .queue-meta {
+        color: var(--text-muted);
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.68rem;
+    }
+
+    .queue-severity {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 78px;
+        padding: 3px 8px;
+        border-radius: 999px;
+        font-size: 0.62rem;
+        font-weight: 800;
+        letter-spacing: 0.6px;
+        margin-bottom: 6px;
+        color: #fff;
+        text-transform: uppercase;
+    }
+
+    .severity-critical {
+        background: rgba(239, 68, 68, 0.95);
+    }
+
+    .severity-moderate {
+        background: rgba(245, 158, 11, 0.95);
+    }
+
+    .severity-low {
+        background: rgba(59, 130, 246, 0.95);
+    }
+
+    .queue-empty {
+        color: var(--text-muted);
+        font-size: 0.75rem;
+    }
+
+    .event-log-content {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.65rem;
+        height: 240px;
+        overflow-y: auto;
+        color: #7dd3fc;
+        line-height: 1.5;
+        padding-right: 5px;
+    }
+
+    .log-entry {
+        margin-bottom: 6px;
+        padding-bottom: 4px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    }
+
+    .btn-premium {
+        background: var(--accent-blue);
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 12px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: 0.3s ease;
+    }
+
+    .secondary {
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    .btn-premium:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(59, 130, 246, 0.3);
+    }
+
+    .badge-status-pro {
+        background: rgba(255, 255, 255, 0.08);
+        color: #fff;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 800;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .status-connected {
+        background: rgba(16, 185, 129, 0.12) !important;
+        color: var(--accent-green) !important;
+        border-color: rgba(16, 185, 129, 0.3) !important;
+    }
+
+    .status-disconnected {
+        background: rgba(239, 68, 68, 0.12) !important;
+        color: var(--accent-red) !important;
+        border-color: rgba(239, 68, 68, 0.3) !important;
+    }
+</style>
+
+<script>
+    let ws = null;
+    let activeCameraId = "cam1";
+    let lastSummaryByCamera = {};
+
+    // 8 logical cameras — only 4 visible slots at a time (2×2 wall)
+    const VISIBLE_SLOTS = ["slot0", "slot1", "slot2", "slot3"];
+    // Map: slotId -> cameraId currently shown in that slot
+    const slotMap = { slot0: "cam1", slot1: "cam2", slot2: "cam3", slot3: "cam4" };
+    // Map: cameraId -> slotId (reverse)
+    const camSlot = { cam1: "slot0", cam2: "slot1", cam3: "slot2", cam4: "slot3" };
+
+    const cameraStates = {
+        cam1: { label: "CAM-01", area: "Panjagutta Signal, Hyderabad",               videoUrl: "", status: "READY" },
+        cam2: { label: "CAM-02", area: "Hitech City Junction, Hyderabad",            videoUrl: "", status: "READY" },
+        cam3: { label: "CAM-03", area: "Charminar Crossroad, Hyderabad",             videoUrl: "", status: "READY" },
+        cam4: { label: "CAM-04", area: "Secunderabad Railway Station, Hyderabad",    videoUrl: "", status: "READY" },
+        cam5: { label: "CAM-05", area: "Mehdipatnam Signal, Hyderabad",              videoUrl: "", status: "READY" },
+        cam6: { label: "CAM-06", area: "KPHB Colony Road, Hyderabad",                videoUrl: "", status: "READY" },
+        cam7: { label: "CAM-07", area: "Dilsukhnagar Bus Stop, Hyderabad",           videoUrl: "", status: "READY" },
+        cam8: { label: "CAM-08", area: "Jubilee Hills Check Post, Hyderabad",        videoUrl: "", status: "READY" }
+    };
+
+    const allCameraIds = Object.keys(cameraStates);
+
+    const videoUpload = document.getElementById("videoUpload");
+    const eventLog = document.getElementById("eventLog");
+    const wsStatusBadge = document.getElementById("wsStatusBadge");
+    const sessionStatus = document.getElementById("sessionStatus");
+    const cameraSelect = document.getElementById("cameraSelect");
+    const locationSelect = document.getElementById("locationSelect");
+    const cameraWall = document.getElementById("cameraWall");
+
+    document.addEventListener("DOMContentLoaded", () => {
+        tippy('[data-tippy-content]');
+        createCameraCards();
+        setupSelectors();
+        setupVideoUpload();
+        startClock();
+        syncCameraUI();
+        updateActiveInfo();
+        addLog("SYSTEM INITIALIZED.");
+    });
+
+    function createCameraCards() {
+        // Only render 4 physical slot divs
+        cameraWall.innerHTML = VISIBLE_SLOTS.map((slotId) => {
+            const cameraId = slotMap[slotId];
+            const cam = cameraStates[cameraId];
+            return buildCameraCardHTML(slotId, cameraId, cam);
+        }).join("");
+    }
+
+    function buildCameraCardHTML(slotId, cameraId, cam) {
+        const isActive = (cameraId === activeCameraId);
+        return `
+            <div class="glass-card camera-card ${isActive ? 'active-camera' : ''}" id="slot-${slotId}" onclick="setActiveCameraBySlot('${slotId}')">
+                <div class="camera-card-header">
+                    <div>
+                        <div class="cam-title" id="${slotId}-cam-title">${cam.label}</div>
+                        <div class="cam-subtitle" id="${slotId}-area-label">${shortArea(cam.area)}</div>
+                    </div>
+                    <div class="cam-badge" id="${slotId}-badge">${isActive ? 'ACTIVE' : (cam.videoUrl ? 'LOADED' : 'READY')}</div>
+                </div>
+
+                <div class="video-container-pro" id="videoContainer-${slotId}">
+                    <video id="video-${slotId}" controls muted playsinline
+                        style="width:100%;height:100%;object-fit:contain;background:#000;">
+                        <source src="${cam.videoUrl}" type="video/mp4">
+                    </video>
+
+                    <div class="ai-overlay">
+                        <div class="hud-top-left">
+                            <div class="channel-info" id="${slotId}-channel-info">${cam.label} // ${cam.area.toUpperCase()}</div>
+                            <div class="timestamp" id="liveClock-${slotId}">00:00:00</div>
+                        </div>
+
+                        <div class="hud-top-right">
+                            <div class="alert-box" id="crimeAlert-${slotId}" style="display:none;">
+                                <i class="fas fa-gavel"></i>
+                                <span id="crimeAlertText-${slotId}">CRIME DETECTED</span>
+                            </div>
+                        </div>
+
+                        <div class="hud-bottom-left">
+                            <div class="action-tag">CRIME: <span id="currentCrime-${slotId}">IDLE</span></div>
+                            <div class="confidence-bar-wrap">
+                                <div class="confidence-fill" id="accuracyFill-${slotId}" style="width:0%;"></div>
+                            </div>
+                            <div class="hud-meta">
+                                <div>ACCURACY: <span id="accuracyText-${slotId}">0%</span></div>
+                                <div>ZONE: <span id="areaText-${slotId}">${shortArea(cam.area)}</span></div>
+                            </div>
+                            <div class="summary-box" id="summaryBox-${slotId}">
+                                Upload video for ${cam.label}.
+                            </div>
+                        </div>
+
+                        <div class="bbox-layer" id="bboxLayer-${slotId}"></div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function shortArea(area) {
+        // Strip ", Hyderabad" suffix for compact display
+        return area.replace(/, Hyderabad$/, '');
+    }
+
+    function getSlotElements(slotId) {
+        return {
+            card:        document.getElementById(`slot-${slotId}`),
+            badge:       document.getElementById(`${slotId}-badge`),
+            video:       document.getElementById(`video-${slotId}`),
+            bboxLayer:   document.getElementById(`bboxLayer-${slotId}`),
+            currentCrime:document.getElementById(`currentCrime-${slotId}`),
+            accuracyFill:document.getElementById(`accuracyFill-${slotId}`),
+            accuracyText:document.getElementById(`accuracyText-${slotId}`),
+            areaText:    document.getElementById(`areaText-${slotId}`),
+            summaryBox:  document.getElementById(`summaryBox-${slotId}`),
+            crimeAlert:  document.getElementById(`crimeAlert-${slotId}`),
+            crimeAlertText: document.getElementById(`crimeAlertText-${slotId}`),
+            areaLabel:   document.getElementById(`${slotId}-area-label`),
+            channelInfo: document.getElementById(`${slotId}-channel-info`),
+            liveClock:   document.getElementById(`liveClock-${slotId}`),
+            camTitle:    document.getElementById(`${slotId}-cam-title`)
+        };
+    }
+
+    // Legacy helper: get elements by camera id (finds which slot currently shows it)
+    function getCameraElements(cameraId) {
+        const slotId = camSlot[cameraId];
+        return slotId ? getSlotElements(slotId) : null;
+    }
+
+    // Clicking a slot makes that slot's camera the active one
+    function setActiveCameraBySlot(slotId) {
+        const cameraId = slotMap[slotId];
+        setActiveCamera(cameraId);
+    }
+
+
+    function setupSelectors() {
+
+        cameraSelect.addEventListener("change", (e) => {
+            setActiveCamera(e.target.value);
+        });
+
+        locationSelect.addEventListener("change", (e) => {
+            const newArea = e.target.value;
+            cameraStates[activeCameraId].area = newArea;
+            refreshActiveSlotUI();
+            updateActiveInfo();
+            addLog(`${cameraStates[activeCameraId].label} zone set to ${shortArea(newArea)}`);
+        });
+    }
+
+    function setActiveCamera(newCameraId) {
+        // Find which slot the active camera is in and replace it with the new cam
+        const activeSlot = camSlot[activeCameraId];
+
+        if (activeSlot) {
+            // Remove old camera from slot maps
+            delete camSlot[activeCameraId];
+
+            // Assign new camera to the same slot
+            slotMap[activeSlot] = newCameraId;
+            camSlot[newCameraId] = activeSlot;
+
+            // Refresh that slot's DOM
+            const slotEl = document.getElementById(`slot-${activeSlot}`);
+            if (slotEl) {
+                const cam = cameraStates[newCameraId];
+                slotEl.outerHTML = buildCameraCardHTML(activeSlot, newCameraId, cam);
+            }
+        }
+
+        activeCameraId = newCameraId;
+        cameraSelect.value = newCameraId;
+        locationSelect.value = cameraStates[newCameraId].area;
+        syncSlotStyles();
+        updateActiveInfo();
+        addLog(`Active camera → ${cameraStates[newCameraId].label} (${shortArea(cameraStates[newCameraId].area)})`);
+
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            restartMonitoringForActiveCamera();
+        }
+    }
+
+    function syncSlotStyles() {
+        VISIBLE_SLOTS.forEach(slotId => {
+            const cameraId = slotMap[slotId];
+            if (!cameraId) return;
+            const els = getSlotElements(slotId);
+            if (!els || !els.card) return;
+            const cam = cameraStates[cameraId];
+
+            if (cameraId === activeCameraId) {
+                els.card.classList.add('active-camera');
+                els.badge.innerText = 'ACTIVE';
+                els.badge.style.background = 'rgba(59,130,246,0.18)';
+                els.badge.style.borderColor = 'rgba(59,130,246,0.35)';
+            } else {
+                els.card.classList.remove('active-camera');
+                els.badge.innerText = cam.videoUrl ? 'LOADED' : 'READY';
+                els.badge.style.background = 'rgba(255,255,255,0.07)';
+                els.badge.style.borderColor = 'rgba(255,255,255,0.08)';
+            }
+        });
+    }
+
+    function refreshActiveSlotUI() {
+        const slotId = camSlot[activeCameraId];
+        if (!slotId) return;
+        const els = getSlotElements(slotId);
+        const cam = cameraStates[activeCameraId];
+        if (!els) return;
+        if (els.areaLabel) els.areaLabel.innerText = shortArea(cam.area);
+        if (els.areaText)  els.areaText.innerText  = shortArea(cam.area);
+        if (els.channelInfo) els.channelInfo.innerText = `${cam.label} // ${cam.area.toUpperCase()}`;
+    }
+
+    function updateActiveInfo() {
+        const cam = cameraStates[activeCameraId];
+        document.getElementById("activeCameraText").innerText = cam.label;
+        document.getElementById("activeLocationText").innerText = shortArea(cam.area);
+        locationSelect.value = cam.area;
+        cameraSelect.value = activeCameraId;
+    }
+
+    function setupVideoUpload() {
+        videoUpload.addEventListener("change", async function (e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const targetCamera = cameraStates[activeCameraId];
+            const slotId = camSlot[activeCameraId];
+            const targetEls = slotId ? getSlotElements(slotId) : null;
+
+            addLog(`Uploading: ${file.name} → ${targetCamera.label}`);
+            sessionStatus.innerText = "Uploading";
+
+            const formData = new FormData();
+            formData.append("video", file);
+            formData.append("camera_id", activeCameraId);
+            formData.append("location", targetCamera.area);
+
+            try {
+                const res = await fetch("/api/upload-video", {
+                    method: "POST",
+                    body: formData
+                });
+
+                const data = await res.json();
+
+                if (!res.ok) {
+                    throw new Error(data.detail || "Upload failed");
+                }
+
+                const uploadedVideoUrl = data.video_url;
+                cameraStates[activeCameraId].videoUrl = uploadedVideoUrl;
+
+                if (targetEls) {
+                    targetEls.video.src = uploadedVideoUrl;
+                    targetEls.video.load();
+                    try { targetEls.video.currentTime = 0; await targetEls.video.play(); } catch(e2){}
+                    targetEls.summaryBox.innerText = `Video loaded on ${targetCamera.label} — ${shortArea(targetCamera.area)}. Analysing...`;
+                }
+
+                addLog(`Video loaded on ${targetCamera.label}: ${data.file_name}`);
+                sessionStatus.innerText = "Video Loaded";
+                syncSlotStyles();
+                startMonitoring();
+            } catch (err) {
+                console.error(err);
+                addLog(`Upload failed: ${err.message}`);
+                sessionStatus.innerText = "Upload Error";
+            }
+        });
+    }
+
+    function startClock() {
+        setInterval(() => {
+            const timeText = new Date().toLocaleTimeString("en-GB");
+            VISIBLE_SLOTS.forEach(slotId => {
+                const el = document.getElementById(`liveClock-${slotId}`);
+                if (el) el.innerText = timeText;
+            });
+        }, 500);
+    }
+
+    function addLog(msg) {
+        const time = new Date().toLocaleTimeString("en-GB", { hour12: false });
+        const entry = document.createElement("div");
+        entry.className = "log-entry";
+        entry.innerHTML = `<span style="color:rgba(255,255,255,0.4)">[${time}]</span> ${msg}`;
+        eventLog.prepend(entry);
+
+        while (eventLog.children.length > 50) {
+            eventLog.removeChild(eventLog.lastChild);
+        }
+    }
+
+    function restartMonitoringForActiveCamera() {
+        if (ws) {
+            try {
+                ws.close();
+            } catch (e) { }
+            ws = null;
+        }
+        startMonitoring();
+    }
+
+    function startMonitoring() {
+        if (ws && ws.readyState === WebSocket.OPEN) return;
+
+        const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+        const location = encodeURIComponent(cameraStates[activeCameraId].area);
+        ws = new WebSocket(`${protocol}://${window.location.host}/ws/monitoring?camera_id=${activeCameraId}&location=${location}`);
+
+        sessionStatus.innerText = "Connecting";
+        updateWsBadge(false);
+
+        ws.onopen = () => {
+            sessionStatus.innerText = "Running";
+            updateWsBadge(true);
+            addLog(`WebSocket connected for ${cameraStates[activeCameraId].label} (${cameraStates[activeCameraId].area}).`);
+        };
+
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            renderMonitoring(data);
+        };
+
+        ws.onclose = () => {
+            sessionStatus.innerText = "Stopped";
+            updateWsBadge(false);
+            addLog("WebSocket disconnected.");
+        };
+
+        ws.onerror = () => {
+            sessionStatus.innerText = "Error";
+            updateWsBadge(false);
+            addLog("WebSocket error.");
+        };
+    }
+
+    async function stopMonitoring() {
+        try {
+            await fetch("/api/monitoring/stop", { method: "POST" });
+        } catch (err) {
+            console.error(err);
+        }
+
+        if (ws) {
+            ws.close();
+            ws = null;
+        }
+
+        sessionStatus.innerText = "Stopped";
+        updateWsBadge(false);
+    }
+
+    function updateWsBadge(connected) {
+        if (connected) {
+            wsStatusBadge.innerHTML = '<i class="fas fa-satellite-dish"></i> CONNECTED';
+            wsStatusBadge.classList.add("status-connected");
+            wsStatusBadge.classList.remove("status-disconnected");
+        } else {
+            wsStatusBadge.innerHTML = '<i class="fas fa-satellite-dish"></i> DISCONNECTED';
+            wsStatusBadge.classList.add("status-disconnected");
+            wsStatusBadge.classList.remove("status-connected");
+        }
+    }
+
+    function renderMonitoring(data) {
+        const targetCameraId = data.camera_id || activeCameraId;
+        const slotId = camSlot[targetCameraId];
+
+        renderSession(data.progress || 0, data.status || "idle", data.telemetry || {});
+        renderCounts(data.counts || {});
+        if (slotId) {
+            renderCrimeState(slotId, data);
+            renderBoxes(slotId, data);
+        }
+        renderDetectionQueue(data.notifications || []);
+
+        if (data.summary && data.summary !== lastSummaryByCamera[targetCameraId]) {
+            addLog(`${cameraStates[targetCameraId].label}: ${data.summary}`);
+            lastSummaryByCamera[targetCameraId] = data.summary;
+        }
+
+        if (data.error) addLog(`ERROR: ${data.error}`);
+    }
+
+    function renderSession(progress, status, telemetry) {
+        document.getElementById("frameText").innerText = `${telemetry.frame_index || 0} / ${telemetry.total_frames || 0}`;
+        document.getElementById("sessionProgressFill").style.width = `${Math.round((progress || 0) * 100)}%`;
+
+        if (status) {
+            document.getElementById("sessionStatus").innerText =
+                status.charAt(0).toUpperCase() + status.slice(1);
+        }
+
+        updateActiveInfo();
+    }
+
+    function renderCounts(counts) {
+        const vehicles =
+            (counts.car || 0) +
+            (counts.bus || 0) +
+            (counts.truck || 0) +
+            (counts.bicycle || 0);
+
+        document.getElementById("count-person").innerText = counts.person || 0;
+        document.getElementById("count-backpack").innerText = counts.backpack || 0;
+        document.getElementById("count-handbag").innerText = counts.handbag || 0;
+        document.getElementById("count-motorcycle").innerText = counts.motorcycle || 0;
+        document.getElementById("count-vehicle").innerText = vehicles;
+    }
+
+    function renderCrimeState(slotId, data) {
+        const els = getSlotElements(slotId);
+        if (!els) return;
+
+        const detectedCrime = data.crime_type || data.detected_crime || data.action || "NO CRIME";
+        const severityLabel = String(data.severity_label || "LOW").toUpperCase();
+        const accuracyPct = Math.round((data.confidence || data.accuracy || 0) * 100);
+
+        els.currentCrime.innerText = detectedCrime;
+        els.accuracyFill.style.width = `${accuracyPct}%`;
+        els.accuracyText.innerText = `${accuracyPct}%`;
+        const cameraId = slotMap[slotId];
+        els.areaText.innerText = data.location ? shortArea(data.location) : shortArea(cameraStates[cameraId]?.area || '');
+        els.summaryBox.innerText = data.summary || `Crime: ${detectedCrime}. Severity: ${severityLabel}. Accuracy: ${accuracyPct}%.`;
+
+        const isCrime = detectedCrime && !["IDLE","SCANNING","NO CRIME","UNKNOWN","STOPPED","COMPLETED"].includes(detectedCrime.toUpperCase());
+
+        if (data.alert || isCrime) {
+            els.crimeAlert.style.display = "block";
+            els.crimeAlertText.innerText = `${severityLabel} · ${detectedCrime}`;
+            els.currentCrime.style.color = severityLabel === "CRITICAL" ? "var(--accent-red)" : "#fff";
+            els.accuracyFill.style.backgroundColor = severityLabel === "CRITICAL" ? "var(--accent-red)" : "var(--accent-orange)";
+        } else {
+            els.crimeAlert.style.display = "none";
+            els.currentCrime.style.color = "#fff";
+            els.accuracyFill.style.backgroundColor = "var(--accent-blue)";
+        }
+    }
+
+    function renderBoxes(slotId, data) {
+        const els = getSlotElements(slotId);
+        if (!els) return;
+        const boxes = Array.isArray(data.boxes) ? data.boxes : [];
+        els.bboxLayer.innerHTML = "";
+
+        const detectedCrime = data.crime_type || data.detected_crime || data.action || "NO CRIME";
+        const renderableBoxes = boxes.filter(b => b && b.is_crime_box);
+        const shouldRender = renderableBoxes.length > 0 &&
+            detectedCrime &&
+            !["IDLE","SCANNING","NO CRIME","UNKNOWN","PERSON DETECTED","OBJECT DETECTED"].includes(detectedCrime.toUpperCase());
+        if (!shouldRender) return;
+
+        renderableBoxes.forEach(box => {
+            const el = document.createElement("div");
+            el.className = "bbox";
+            el.style.left = `${(box.x || 0) * 100}%`;
+            el.style.top = `${(box.y || 0) * 100}%`;
+            el.style.width = `${(box.w || 0) * 100}%`;
+            el.style.height = `${(box.h || 0) * 100}%`;
+            el.style.borderColor = box.color || "#3b82f6";
+
+            const label = document.createElement("div");
+            label.className = "bbox-label";
+            label.style.background = box.color || "#3b82f6";
+            label.innerText = `${box.label} ${box.confidence ? (box.confidence * 100).toFixed(0) : "0"}%`;
+
+            el.appendChild(label);
+            els.bboxLayer.appendChild(el);
+        });
+    }
+
+    function renderDetectionQueue(notifications) {
+        const queue = document.getElementById("detectionQueue");
+
+        if (!notifications || notifications.length === 0) {
+            queue.innerHTML = '<div class="queue-empty">No crime detections yet.</div>';
+            return;
+        }
+
+        queue.innerHTML = "";
+        notifications.slice(0, 12).forEach(item => {
+            const severity = String(item.severity || "LOW").toLowerCase();
+            const div = document.createElement("div");
+            div.className = "queue-item";
+            div.innerHTML = `
+                <div class="queue-severity severity-${severity}">${item.severity || "LOW"}</div>
+                <div class="queue-title">${item.crime || "Alert"}</div>
+                <div class="queue-meta">${item.camera || "CAM"} · ${item.location || "Unknown location"}</div>
+                <div class="queue-meta">${item.time || "--:--:--"} · ${Math.round((item.confidence || 0) * 100)}%</div>
+            `;
+            queue.appendChild(div);
+        });
+    }
+</script>
+{% endblock %}

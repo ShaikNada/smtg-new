@@ -8,7 +8,11 @@ columns_to_add = [
     ("image_path", "VARCHAR(255)"),
     ("tags", "VARCHAR(255)"),
     ("raw_fir_text", "TEXT"),
-    ("evidence_summary", "TEXT")
+    ("evidence_summary", "TEXT"),
+    ("weapon_used", "VARCHAR(120)"),
+    ("victim_age", "INTEGER"),
+    ("victim_gender", "VARCHAR(10)"),
+    ("reported_at", "DATETIME")
 ]
 
 db_path = 'ciris.db'

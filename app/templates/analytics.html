@@ -1,0 +1,1256 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Tippy.js for modern tooltips -->
+<link rel="stylesheet" href="https://unpkg.com/tippy.js@6/dist/tippy.css" />
+<link rel="stylesheet" href="https://unpkg.com/tippy.js@6/animations/shift-away.css" />
+<!-- Leaflet for district map -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/@popperjs/core@2"></script>
+<script src="https://unpkg.com/tippy.js@6"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<div class="analytics-container"
+    style="animation: fadeIn 0.8s ease-out; padding: 25px; box-sizing: border-box; width: 100%;">
+
+    <!-- Header Section -->
+    <div class="analytics-header"
+        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; flex-wrap: wrap; gap: 20px;">
+        <div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <h1
+                    style="font-size: clamp(2rem, 5vw, 2.6rem); font-weight: 800; letter-spacing: -1.5px; margin: 0; color: #fff;">
+                    CRIME <span style="font-weight: 300; opacity: 0.8;">INSIGHTS ENGINE</span>
+                </h1>
+                <i class="fas fa-info-circle info-icon header-info"
+                    data-tippy-content="Real-time predictive analytics hub processing multi-year Telangana crime data."></i>
+            </div>
+            <div
+                style="font-size: 0.85rem; color: var(--accent-blue); margin-top: 8px; letter-spacing: 1.5px; text-transform: uppercase; font-weight: 600;">
+                <i class="fas fa-microchip" style="margin-right: 5px;"></i> Deep Analysis Mode: ON &nbsp;|&nbsp;
+                <span style="color: var(--accent-green);">anly1 ML Engine Active</span>
+            </div>
+        </div>
+        <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: center;">
+            <!-- Year selector for ML forecast -->
+            <div style="display:flex; align-items:center; gap:8px;">
+                <label style="color:var(--text-muted); font-size:0.8rem; font-weight:700; letter-spacing:1px;">PREDICT
+                    YEAR</label>
+                <select id="predictYearSelect" onchange="loadMLData()"
+                    style="background:rgba(255,255,255,0.07); color:#fff; border:1px solid var(--glass-border); border-radius:10px; padding:8px 14px; font-weight:700; cursor:pointer; font-size:0.85rem;">
+                    <option value="2019">2019</option>
+                    <option value="2020" selected>2020</option>
+                    <option value="2021">2021</option>
+                    <option value="2022">2022</option>
+                    <option value="2023">2023</option>
+                </select>
+            </div>
+            <button class="btn-premium" onclick="location.reload()"
+                data-tippy-content="Refresh all intelligence data points.">
+                <i class="fas fa-sync-alt"></i> Force Refresh
+            </button>
+            <button class="btn-premium secondary" disabled data-tippy-content="Export feature coming soon."
+                style="opacity: 0.5; cursor: not-allowed;">
+                <i class="fas fa-file-export"></i> Export Report
+            </button>
+        </div>
+    </div>
+
+    <!-- Executive Summary Card -->
+    <div class="glass-card summary-card" style="margin-bottom: 30px;">
+        <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 18px;">
+            <div class="summary-icon"><i class="fas fa-robot"></i></div>
+            <h3 style="margin: 0; font-size: 1.3rem; color: #fff; font-weight: 700;">COMMANDER'S SUMMARY</h3>
+            <i class="fas fa-info-circle info-icon"
+                data-tippy-content="AI analysis of the current crime landscape across all districts."></i>
+        </div>
+        <div style="font-size: 1.1rem; color: #cbd5e1; line-height: 1.8; opacity: 0.9;">
+            {{ summary_text | safe }}
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         SECTION 1: anly1 ML ENGINE — FULLY INTEGRATED
+         Linear Regression per crime type, trained on anly2.csv
+    ═══════════════════════════════════════════════════════════════ -->
+    <div style="margin-bottom: 12px; display:flex; align-items:center; gap:12px;">
+        <div style="height:2px; flex:1; background:linear-gradient(90deg, var(--accent-blue), transparent);"></div>
+        <span style="color:var(--accent-blue); font-size:0.75rem; font-weight:800; letter-spacing:2px;">ANLY1 ML ENGINE
+            OUTPUT</span>
+        <div style="height:2px; flex:1; background:linear-gradient(270deg, var(--accent-blue), transparent);"></div>
+    </div>
+
+    <!-- ML Loading Spinner -->
+    <div id="mlLoadingState" style="text-align:center; padding:40px; color:var(--text-muted);">
+        <i class="fas fa-brain fa-spin" style="font-size:2rem; color:var(--accent-blue); margin-bottom:12px;"></i>
+        <div style="font-weight:700; letter-spacing:2px;">RUNNING LINEAR REGRESSION MODELS...</div>
+    </div>
+
+    <!-- ML Content (shown after load) -->
+    <div id="mlContent" style="display:none;">
+
+        <!-- ML Forecast Bar Chart + Trend Lines side by side -->
+        <div
+            style="display: grid; grid-template-columns: repeat(auto-fit, minmax(480px, 1fr)); gap: 30px; margin-bottom: 30px;">
+            <!-- Bar Chart: Predicted Counts per Crime Type -->
+            <div class="glass-card chart-container-inner"
+                style="position: relative; display: flex; flex-direction: column;">
+                <div class="section-header" style="padding: 25px; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                    <h3><i class="fas fa-brain"></i> AI CRIME FORECAST</h3>
+                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 5px;">
+                        LinearRegression per Crime Type — anly1 Logic &nbsp;|&nbsp;
+                        <span id="mlPredictLabel" style="color:var(--accent-green); font-weight:800;">Year: 2020</span>
+                    </div>
+                </div>
+                <div style="flex:1; padding:25px; min-height:360px;">
+                    <canvas id="mlForecastChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Line Chart: Historical + Trendline per Crime Type -->
+            <div class="glass-card chart-container-inner"
+                style="position: relative; display: flex; flex-direction: column;">
+                <div class="section-header" style="padding: 25px; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                    <h3><i class="fas fa-project-diagram"></i> STRATEGIC TRENDS</h3>
+                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 5px;">
+                        Historical 2016–2018 + ML Trendline Projection
+                    </div>
+                </div>
+                <div style="flex:1; padding:25px; min-height:360px;">
+                    <canvas id="mlTrendChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- ML Model Accuracy Cards -->
+        <div id="mlModelCards" class="metrics-row-grid" style="margin-bottom: 30px;"></div>
+
+        <!-- Crime Type Selector for deep-dive trend -->
+        <div class="glass-card" style="padding:25px; margin-bottom:30px;">
+            <div
+                style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:15px; margin-bottom:20px;">
+                <h3 style="margin:0; color:#fff; font-size:1rem; font-weight:700;">
+                    <i class="fas fa-chart-line"></i> CRIME TYPE DEEP DIVE — TREND & PROJECTION
+                </h3>
+                <div id="crimeTypeButtons" style="display:flex; flex-wrap:wrap; gap:8px;"></div>
+            </div>
+            <div style="height:300px;">
+                <canvas id="deepDiveChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         SECTION 2: TOP METRICS ROW (dynamic from DB)
+    ═══════════════════════════════════════════════════════════════ -->
+    <div style="margin-bottom: 12px; display:flex; align-items:center; gap:12px;">
+        <div style="height:2px; flex:1; background:linear-gradient(90deg, var(--accent-green), transparent);"></div>
+        <span style="color:var(--accent-green); font-size:0.75rem; font-weight:800; letter-spacing:2px;">LIVE DATABASE
+            METRICS</span>
+        <div style="height:2px; flex:1; background:linear-gradient(270deg, var(--accent-green), transparent);"></div>
+    </div>
+
+    <div class="metrics-row-grid" style="margin-bottom:30px;">
+        <div class="glass-card stat-item-pro" data-tippy-content="Current entries in the intelligence database.">
+            <div class="stat-label">TOTAL RECORDS <i class="fas fa-info-circle info-icon"></i></div>
+            <div class="stat-value counter" data-target="{{ total_firs }}">0</div>
+            <div class="stat-detail"><i class="fas fa-check-circle"></i> Fully Audited</div>
+        </div>
+        <div class="glass-card stat-item-pro" data-tippy-content="AI projected volume for the next cycle.">
+            <div class="stat-label">FORECASTED ({{ predicted_month }}) <i class="fas fa-info-circle info-icon"></i>
+            </div>
+            <div class="stat-value counter" data-target="{{ predicted_count }}" style="color: var(--accent-green);">0
+            </div>
+            <div class="stat-detail"><i class="fas fa-chart-line"></i> Projected Trend</div>
+        </div>
+        <div class="glass-card stat-item-pro">
+            <div class="stat-label">RESPONSE EFFICIENCY <i class="fas fa-info-circle info-icon"></i></div>
+            <div class="stat-value"><span class="counter" data-target="{{ avg_response_lag | int }}">0</span>h</div>
+            <div class="stat-detail"><i class="fas fa-tachometer-alt"></i> Avg System Delay</div>
+        </div>
+        <div class="glass-card stat-item-pro">
+            <div class="stat-label">HIGH-RISK ALERTS <i class="fas fa-info-circle info-icon"></i></div>
+            <div class="stat-value counter" data-target="{{ open_cases }}" style="color: var(--accent-red);">0</div>
+            <div class="stat-detail"><i class="fas fa-exclamation-triangle"></i> Action Required</div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         SECTION 3: MAIN ANALYSIS GRID
+    ═══════════════════════════════════════════════════════════════ -->
+    <div class="master-analysis-grid">
+        <!-- Left Side -->
+        <div class="analysis-stack">
+            <!-- Hourly Chart -->
+            <div class="glass-card chart-container-inner" style="height: auto;">
+                <div class="section-header" style="margin-bottom: 20px; padding:25px 25px 0;">
+                    <h3><i class="fas fa-clock"></i> HOURLY RISK INTENSITY</h3>
+                    <div style="font-size:0.8rem; color:var(--text-muted); margin-top:5px;">Red = Night hours (6PM–6AM)
+                    </div>
+                </div>
+                <div style="height: 300px; width: 100%; padding:0 25px 25px;">
+                    <canvas id="hourlyBarChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Demographics and Weapons -->
+            <div class="secondary-metrics-grid">
+                <div class="glass-card chart-container-inner">
+                    <h3 class="inner-title"><i class="fas fa-users-cog"></i> VICTIM RISK</h3>
+                    <div class="doughnut-content">
+                        <div class="canvas-wrap">
+                            <canvas id="genderChart"></canvas>
+                        </div>
+                        <div class="doughnut-info">
+                            <div class="mini-metric"><span>Youth (0–18):</span> <strong>{{ age_groups['0-18']
+                                    }}</strong></div>
+                            <div class="mini-metric"><span>Adult (19–35):</span> <strong>{{ age_groups['19-35']
+                                    }}</strong></div>
+                            <div class="mini-metric"><span>Mid (36–55):</span> <strong>{{ age_groups['36-55']
+                                    }}</strong></div>
+                            <div class="mini-metric"><span>Senior (55+):</span> <strong>{{ age_groups['55+'] }}</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="glass-card chart-container-inner">
+                    <h3 class="inner-title"><i class="fas fa-shield-virus"></i> WEAPON USAGE</h3>
+                    <div style="height: 220px; width: 100%; padding:0 15px 15px;">
+                        <canvas id="weaponChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Crime Distribution Pie (from DB) -->
+            <div class="glass-card chart-container-inner" style="margin-top:30px;">
+                <h3 class="inner-title"><i class="fas fa-chart-pie"></i> CRIME TYPE DISTRIBUTION</h3>
+                <div style="height:280px; padding:0 25px 25px;">
+                    <canvas id="crimeDistChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Side -->
+        <div class="analysis-stack">
+            <!-- Regional Hotspots -->
+            <div class="glass-card chart-container-inner">
+                <h3 class="inner-title"><i class="fas fa-map-marked-alt"></i> REGIONAL HOTSPOTS</h3>
+                <div class="hotspots-scroller">
+                    {% set max_count = emerging_hotspots[0].count if emerging_hotspots else 1 %}
+                    {% for item in emerging_hotspots %}
+                    <div class="pro-hotspot-item">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                            <span class="hotspot-name">{{ item.district }}</span>
+                            <span class="hotspot-val">{{ item.count }} Alerts</span>
+                        </div>
+                        <div class="hotspot-bar">
+                            <div class="hotspot-fill"
+                                style="width: {{ [[(item.count * 100 / max_count), 100] | min, 0] | max }}%;">
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Telangana District Map -->
+            <div class="glass-card chart-container-inner" style="margin-top:25px;">
+                <div
+                    style="padding:25px 25px 0; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+                    <h3
+                        style="margin:0; font-size:1rem; color:#fff; font-weight:700; display:flex; align-items:center; gap:10px;">
+                        <i class="fas fa-globe-asia"></i> TELANGANA DISTRICT HEATMAP
+                    </h3>
+                    <div id="mapLegend" style="display:flex; gap:8px; font-size:0.72rem; color:var(--text-muted);">
+                    </div>
+                </div>
+                <div id="districtMap" style="height:350px; border-radius:0 0 20px 20px; margin-top:15px;"></div>
+            </div>
+
+            <!-- Monthly Trend Chart -->
+            <div class="glass-card chart-container-inner" style="margin-top:25px;">
+                <h3 class="inner-title"><i class="fas fa-calendar-alt"></i> MONTHLY TREND</h3>
+                <div style="height:220px; padding:0 25px 25px;">
+                    <canvas id="monthlyTrendChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Live Intelligence Feed -->
+            <div class="glass-card live-feed-pro" style="margin-top: 25px;">
+                <div class="live-header">
+                    <h3><i class="fas fa-satellite pulse"></i> LIVE TRANSMISSIONS</h3>
+                </div>
+                <div id="liveFeedContainer" class="live-body">
+                    <div class="live-placeholder">Establishing Command Link...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     STYLES
+═══════════════════════════════════════════ -->
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+
+    :root {
+        --accent-blue: #3b82f6;
+        --accent-green: #10b981;
+        --accent-red: #ef4444;
+        --accent-amber: #f59e0b;
+        --primary-bg: #0b1120;
+        --glass-bg: rgba(30, 41, 59, 0.45);
+        --glass-border: rgba(255, 255, 255, 0.08);
+        --text-muted: #64748b;
+    }
+
+    body {
+        font-family: 'Space Grotesk', sans-serif;
+        background-color: var(--primary-bg);
+        margin: 0;
+        padding: 0;
+    }
+
+    .glass-card {
+        background: var(--glass-bg);
+        backdrop-filter: blur(15px);
+        border: 1px solid var(--glass-border);
+        border-radius: 20px;
+        position: relative;
+        overflow: hidden;
+        height: auto;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .chart-container-full,
+    .chart-container-inner {
+        padding: 0;
+    }
+
+    .section-header h3 {
+        margin: 0;
+        font-size: 1rem;
+        color: #fff;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .inner-title {
+        font-size: 1rem;
+        color: #fff;
+        margin: 25px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .master-analysis-grid {
+        display: grid;
+        grid-template-columns: 1.5fr 1fr;
+        gap: 30px;
+        align-items: start;
+        margin-bottom: 50px;
+    }
+
+    .secondary-metrics-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 30px;
+        margin-top: 30px;
+    }
+
+    @media (max-width: 1400px) {
+        .master-analysis-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 900px) {
+        .secondary-metrics-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .summary-card {
+        padding: 30px;
+        border-left: 6px solid var(--accent-blue);
+    }
+
+    .summary-icon {
+        background: var(--accent-blue);
+        color: #fff;
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        flex-shrink: 0;
+    }
+
+    .metrics-row-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+
+    .stat-item-pro {
+        padding: 30px;
+    }
+
+    .stat-label {
+        font-size: 0.7rem;
+        color: var(--text-muted);
+        font-weight: 800;
+        letter-spacing: 2px;
+        margin-bottom: 12px;
+    }
+
+    .stat-value {
+        font-size: 2.4rem;
+        font-weight: 800;
+        color: #fff;
+        letter-spacing: -1.5px;
+    }
+
+    .stat-detail {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        margin-top: 15px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .doughnut-content {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        padding: 0 25px 25px;
+        min-height: 200px;
+    }
+
+    .canvas-wrap {
+        flex: 1.2;
+        height: 180px;
+        position: relative;
+    }
+
+    .doughnut-info {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .mini-metric {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        padding: 8px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    }
+
+    .mini-metric strong {
+        color: #fff;
+    }
+
+    .btn-premium {
+        background: var(--accent-blue);
+        color: #fff;
+        border: none;
+        padding: 12px 25px;
+        border-radius: 12px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: 0.2s;
+        font-family: inherit;
+    }
+
+    .btn-premium.secondary {
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    .btn-premium:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(59, 130, 246, 0.3);
+    }
+
+    .hotspots-scroller {
+        padding: 0 25px 25px;
+        max-height: 350px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .pro-hotspot-item {
+        padding: 15px;
+        background: rgba(255, 255, 255, 0.02);
+        border-radius: 12px;
+        transition: 0.3s;
+    }
+
+    .pro-hotspot-item:hover {
+        background: rgba(59, 130, 246, 0.08);
+        transform: translateX(5px);
+    }
+
+    .hotspot-name {
+        font-weight: 700;
+        color: #fff;
+        font-size: 0.9rem;
+    }
+
+    .hotspot-val {
+        font-size: 0.8rem;
+        color: var(--accent-blue);
+        font-weight: 800;
+    }
+
+    .hotspot-bar {
+        height: 6px;
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 3px;
+        overflow: hidden;
+        margin-top: 10px;
+    }
+
+    .hotspot-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--accent-blue), #818cf8);
+        border-radius: 3px;
+    }
+
+    .live-feed-pro {
+        background: rgba(244, 63, 94, 0.03);
+        border: 1px solid rgba(244, 63, 94, 0.1);
+    }
+
+    .live-header {
+        padding: 20px 25px;
+        border-bottom: 1px solid rgba(244, 63, 94, 0.1);
+    }
+
+    .live-body {
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        min-height: 200px;
+    }
+
+    .live-placeholder {
+        text-align: center;
+        color: var(--text-muted);
+        font-size: 0.9rem;
+        margin-top: 40px;
+    }
+
+    .alert-premium {
+        padding: 15px;
+        background: rgba(255, 255, 255, 0.02);
+        border-left: 4px solid var(--accent-red);
+        border-radius: 0 10px 10px 0;
+        animation: slideIn 0.4s ease-out;
+    }
+
+    /* ML Model Accuracy Cards */
+    .ml-model-card {
+        padding: 20px;
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--glass-border);
+        transition: 0.2s;
+    }
+
+    .ml-model-card:hover {
+        background: rgba(59, 130, 246, 0.08);
+        transform: translateY(-2px);
+    }
+
+    .ml-crime-label {
+        font-size: 0.68rem;
+        font-weight: 800;
+        letter-spacing: 1.5px;
+        color: var(--text-muted);
+        margin-bottom: 8px;
+        text-transform: uppercase;
+    }
+
+    .ml-predicted-val {
+        font-size: 1.8rem;
+        font-weight: 800;
+        letter-spacing: -1px;
+        color: #fff;
+    }
+
+    .ml-r2-badge {
+        display: inline-block;
+        padding: 3px 10px;
+        border-radius: 20px;
+        font-size: 0.7rem;
+        font-weight: 800;
+        margin-top: 8px;
+    }
+
+    .crime-type-btn {
+        padding: 6px 14px;
+        border-radius: 8px;
+        border: 1px solid var(--glass-border);
+        background: rgba(255, 255, 255, 0.04);
+        color: var(--text-muted);
+        font-family: inherit;
+        font-size: 0.75rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: 0.2s;
+        letter-spacing: 0.5px;
+    }
+
+    .crime-type-btn:hover,
+    .crime-type-btn.active {
+        background: var(--accent-blue);
+        color: #fff;
+        border-color: var(--accent-blue);
+    }
+
+    /* Leaflet dark theme overrides */
+    .leaflet-container {
+        background: #0d1829 !important;
+        font-family: 'Space Grotesk', sans-serif;
+    }
+
+    .leaflet-popup-content-wrapper {
+        background: rgba(15, 23, 42, 0.95);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        color: #fff;
+    }
+
+    .leaflet-popup-tip {
+        background: rgba(15, 23, 42, 0.95);
+    }
+
+    @keyframes slideIn {
+        from {
+            transform: translateX(30px);
+            opacity: 0;
+        }
+
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .pulse {
+        color: var(--accent-red);
+        animation: bPulse 2s infinite;
+    }
+
+    @keyframes bPulse {
+        0% {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        50% {
+            opacity: 0.5;
+            transform: scale(1.2);
+        }
+
+        100% {
+            opacity: 1;
+            transform: scale(1);
+        }
+    }
+
+    ::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+    }
+</style>
+
+<!-- ═══════════════════════════════════════════
+     SCRIPTS
+═══════════════════════════════════════════ -->
+<script>
+    // ── Jinja2 data injected into JS variables (single parse each) ──
+    const peakHourData = {{ peak_hour_data | tojson }};
+    const genderData = {{ gender_data | tojson }};
+    const weaponData = {{ weapon_data | tojson }};
+    const monthlyTrendData = {{ monthly_trend | tojson }};
+    const crimeDistData = {{ crime_distribution | tojson }};
+
+    tippy('[data-tippy-content]');
+
+    // ── Counter animation ──
+    function startCounters() {
+        document.querySelectorAll('.counter').forEach(el => {
+            const target = +el.dataset.target;
+            if (!target) { el.innerText = target; return; }
+            const inc = Math.max(1, target / 60);
+            let cur = 0;
+            const update = () => {
+                if (cur < target) { cur += inc; el.innerText = Math.ceil(cur); setTimeout(update, 16); }
+                else el.innerText = target;
+            };
+            update();
+        });
+    }
+
+    Chart.defaults.color = '#94a3b8';
+    Chart.defaults.font.family = "'Space Grotesk', sans-serif";
+
+    // ──────────────────────────────────────────────
+    //   STATIC CHARTS (rendered immediately)
+    // ──────────────────────────────────────────────
+
+    // Hourly Bar Chart
+    let hourlyChart;
+    function buildHourlyChart() {
+        const ctx = document.getElementById('hourlyBarChart');
+        if (!ctx) return;
+        hourlyChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: peakHourData.map(d => d.hour),
+                datasets: [{
+                    label: 'Incidents',
+                    data: peakHourData.map(d => d.count),
+                    backgroundColor: peakHourData.map(d =>
+                        parseInt(d.hour) >= 18 || parseInt(d.hour) < 6
+                            ? 'rgba(239,68,68,0.6)' : 'rgba(59,130,246,0.5)'
+                    ),
+                    borderRadius: 4,
+                    barPercentage: 0.75,
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { grid: { color: 'rgba(255,255,255,0.04)' } },
+                    y: { grid: { color: 'rgba(255,255,255,0.04)' } }
+                }
+            }
+        });
+    }
+
+    // Gender Doughnut Chart
+    let genderChart;
+    function buildGenderChart() {
+        const ctx = document.getElementById('genderChart');
+        if (!ctx) return;
+        genderChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: Object.keys(genderData),
+                datasets: [{
+                    data: Object.values(genderData),
+                    backgroundColor: ['#3b82f6', '#f43f5e', '#6366f1', '#10b981'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                cutout: '75%', responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: true, position: 'bottom', labels: { boxWidth: 10, padding: 8, font: { size: 11 } } } }
+            }
+        });
+    }
+
+    // Weapon Bar Chart
+    let weaponChart;
+    function buildWeaponChart() {
+        const ctx = document.getElementById('weaponChart');
+        if (!ctx) return;
+        weaponChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: weaponData.map(d => d.weapon),
+                datasets: [{
+                    data: weaponData.map(d => d.count),
+                    backgroundColor: 'rgba(59,130,246,0.25)',
+                    borderColor: '#3b82f6',
+                    borderWidth: 1,
+                    borderRadius: 5
+                }]
+            },
+            options: {
+                indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { x: { grid: { color: 'rgba(255,255,255,0.04)' } }, y: { grid: { display: false } } }
+            }
+        });
+    }
+
+    // Crime Distribution Pie
+    let crimeDistChart;
+    function buildCrimeDistChart() {
+        const ctx = document.getElementById('crimeDistChart');
+        if (!ctx || !crimeDistData.length) return;
+        const palette = ['#3b82f6', '#10b981', '#ef4444', '#f59e0b', '#8b5cf6', '#06b6d4', '#ec4899', '#22c55e', '#f97316', '#6366f1'];
+        crimeDistChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: crimeDistData.map(d => d.crime_type),
+                datasets: [{
+                    data: crimeDistData.map(d => d.count),
+                    backgroundColor: palette.slice(0, crimeDistData.length),
+                    borderWidth: 0,
+                    hoverOffset: 8
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: { boxWidth: 12, padding: 12, font: { size: 11 } }
+                    }
+                }
+            }
+        });
+    }
+
+    // Monthly Trend Line Chart
+    let monthlyChart;
+    function buildMonthlyChart() {
+        const ctx = document.getElementById('monthlyTrendChart');
+        if (!ctx || !monthlyTrendData.length) return;
+        monthlyChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: monthlyTrendData.map(d => d.month),
+                datasets: [{
+                    label: 'FIRs',
+                    data: monthlyTrendData.map(d => d.count),
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'rgba(59,130,246,0.1)',
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 4,
+                    pointBackgroundColor: '#3b82f6'
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { grid: { color: 'rgba(255,255,255,0.04)' } },
+                    y: { grid: { color: 'rgba(255,255,255,0.04)' }, beginAtZero: true }
+                }
+            }
+        });
+    }
+
+    // ──────────────────────────────────────────────
+    //   ML ENGINE — anly1 integration
+    //   Uses /api/analytics-ml endpoint
+    // ──────────────────────────────────────────────
+
+    let mlForecastChart, mlTrendChart, deepDiveChart;
+    let mlDataCache = null;
+    let activecrimeType = null;
+
+    const CRIME_COLORS = [
+        '#3b82f6', '#10b981', '#ef4444', '#f59e0b',
+        '#8b5cf6', '#06b6d4', '#ec4899', '#22c55e', '#f97316', '#6366f1'
+    ];
+
+    async function loadMLData() {
+        const year = document.getElementById('predictYearSelect').value;
+        document.getElementById('mlLoadingState').style.display = 'block';
+        document.getElementById('mlContent').style.display = 'none';
+        document.getElementById('mlPredictLabel').textContent = `Year: ${year}`;
+
+        try {
+            const res = await fetch(`/api/analytics-ml?predict_year=${year}`);
+            const data = await res.json();
+            if (!data.ok) throw new Error(data.error || 'API error');
+            mlDataCache = data;
+            renderMLCharts(data);
+        } catch (e) {
+            document.getElementById('mlLoadingState').innerHTML =
+                `<div style="color:var(--accent-red); font-weight:700;"><i class="fas fa-exclamation-triangle"></i> ML Engine error: ${e.message}</div>`;
+        }
+    }
+
+    function renderMLCharts(data) {
+        document.getElementById('mlLoadingState').style.display = 'none';
+        document.getElementById('mlContent').style.display = 'block';
+
+        // ── Destroy previous chart instances to avoid canvas reuse error ──
+        if (mlForecastChart) { mlForecastChart.destroy(); mlForecastChart = null; }
+        if (mlTrendChart) { mlTrendChart.destroy(); mlTrendChart = null; }
+
+        const predictions = data.predictions;
+        const crimeTypes = predictions.map(p => p.crime_type);
+        const predVals = predictions.map(p => p.predicted);
+
+        // ── 1. Bar Chart: Predicted counts per crime type ──
+        mlForecastChart = new Chart(document.getElementById('mlForecastChart'), {
+            type: 'bar',
+            data: {
+                labels: crimeTypes,
+                datasets: [{
+                    label: `Predicted ${data.predict_year}`,
+                    data: predVals,
+                    backgroundColor: CRIME_COLORS.slice(0, crimeTypes.length).map(c => c + 'aa'),
+                    borderColor: CRIME_COLORS.slice(0, crimeTypes.length),
+                    borderWidth: 1.5,
+                    borderRadius: 6,
+                    barPercentage: 0.7,
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            afterLabel: (ctx) => {
+                                const p = predictions[ctx.dataIndex];
+                                return p.r2 !== null ? `R² score: ${p.r2}` : '';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { maxRotation: 35, font: { size: 10 } } },
+                    y: { grid: { color: 'rgba(255,255,255,0.04)' }, beginAtZero: true }
+                }
+            }
+        });
+
+        // ── 2. Multi-line trend chart: historical data + trendline ──
+        // Show top 5 crime types for readability
+        const top5 = predictions.slice(0, 5);
+        const allTrendYears = top5[0]?.trend_years || data.years;
+        const trendDatasets = top5.map((p, i) => {
+            const historicalYears = data.years;
+            const historicalCounts = data.historical
+                .filter(h => h.crime_type === p.crime_type)
+                .sort((a, b) => a.year - b.year)
+                .map(h => h.count);
+
+            return [
+                // Historical dots
+                {
+                    label: p.crime_type,
+                    data: allTrendYears.map(yr => {
+                        const found = data.historical.find(h => h.crime_type === p.crime_type && h.year === yr);
+                        return found ? found.count : null;
+                    }),
+                    borderColor: CRIME_COLORS[i],
+                    backgroundColor: CRIME_COLORS[i] + '33',
+                    borderWidth: 2,
+                    pointRadius: 5,
+                    fill: false,
+                    tension: 0.3,
+                    spanGaps: false,
+                },
+                // Trendline (dashed)
+                {
+                    label: `${p.crime_type} (trend)`,
+                    data: allTrendYears.map((yr, idx) => p.trend_vals[idx] ?? null),
+                    borderColor: CRIME_COLORS[i],
+                    borderDash: [6, 4],
+                    borderWidth: 1.5,
+                    pointRadius: allTrendYears.map(yr => yr === data.predict_year ? 7 : 0),
+                    pointBackgroundColor: CRIME_COLORS[i],
+                    fill: false,
+                    tension: 0.3,
+                }
+            ];
+        }).flat();
+
+        mlTrendChart = new Chart(document.getElementById('mlTrendChart'), {
+            type: 'line',
+            data: { labels: allTrendYears.map(String), datasets: trendDatasets },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        labels: {
+                            filter: item => !item.text.includes('(trend)'),
+                            boxWidth: 14, padding: 10, font: { size: 11 }
+                        }
+                    }
+                },
+                scales: {
+                    x: { grid: { color: 'rgba(255,255,255,0.04)' } },
+                    y: { grid: { color: 'rgba(255,255,255,0.04)' }, beginAtZero: true }
+                }
+            }
+        });
+
+        // ── 3. Model accuracy cards ──
+        const cardsContainer = document.getElementById('mlModelCards');
+        cardsContainer.innerHTML = '';
+        predictions.forEach((p, i) => {
+            const r2 = p.r2;
+            const r2Color = r2 === null ? '#64748b' : r2 >= 0.8 ? '#10b981' : r2 >= 0.6 ? '#f59e0b' : '#ef4444';
+            const r2Label = r2 === null ? 'N/A' : r2 >= 0.8 ? 'HIGH FIT' : r2 >= 0.6 ? 'GOOD FIT' : 'LOW FIT';
+            cardsContainer.innerHTML += `
+                <div class="ml-model-card" data-tippy-content="R² = ${r2 ?? 'N/A'}. Higher = better model fit.">
+                    <div class="ml-crime-label">${p.crime_type}</div>
+                    <div class="ml-predicted-val" style="color:${CRIME_COLORS[i % CRIME_COLORS.length]}">
+                        ${p.predicted.toLocaleString()}
+                    </div>
+                    <div style="font-size:0.72rem; color:var(--text-muted); margin-top:4px;">
+                        Predicted ${data.predict_year}
+                    </div>
+                    <span class="ml-r2-badge" style="background:${r2Color}22; color:${r2Color}; border:1px solid ${r2Color}44;">
+                        R² ${r2 !== null ? r2.toFixed(3) : 'N/A'} · ${r2Label}
+                    </span>
+                </div>`;
+        });
+        tippy('[data-tippy-content]');
+
+        // ── 4. Crime type deep-dive buttons ──
+        const btnContainer = document.getElementById('crimeTypeButtons');
+        btnContainer.innerHTML = '';
+        predictions.forEach((p, i) => {
+            const btn = document.createElement('button');
+            btn.className = 'crime-type-btn' + (i === 0 ? ' active' : '');
+            btn.textContent = p.crime_type;
+            btn.onclick = () => {
+                document.querySelectorAll('.crime-type-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                buildDeepDive(p, data, CRIME_COLORS[i % CRIME_COLORS.length]);
+            };
+            btnContainer.appendChild(btn);
+        });
+
+        // Build deep dive for first crime type
+        if (predictions.length) {
+            buildDeepDive(predictions[0], data, CRIME_COLORS[0]);
+        }
+    }
+
+    function buildDeepDive(p, data, color) {
+        if (deepDiveChart) { deepDiveChart.destroy(); deepDiveChart = null; }
+
+        const allYears = p.trend_years.map(String);
+        const historical = data.historical
+            .filter(h => h.crime_type === p.crime_type)
+            .sort((a, b) => a.year - b.year);
+
+        deepDiveChart = new Chart(document.getElementById('deepDiveChart'), {
+            type: 'line',
+            data: {
+                labels: allYears,
+                datasets: [
+                    {
+                        label: 'Actual',
+                        data: allYears.map(yr => {
+                            const h = historical.find(h => String(h.year) === yr);
+                            return h ? h.count : null;
+                        }),
+                        borderColor: color,
+                        backgroundColor: color + '22',
+                        borderWidth: 2.5,
+                        pointRadius: 6,
+                        fill: true,
+                        tension: 0.3,
+                        spanGaps: false,
+                    },
+                    {
+                        label: 'ML Trendline',
+                        data: allYears.map((yr, i) => p.trend_vals[i] ?? null),
+                        borderColor: '#ffffff55',
+                        borderDash: [8, 5],
+                        borderWidth: 2,
+                        pointRadius: allYears.map(yr => yr === String(data.predict_year) ? 8 : 0),
+                        pointBackgroundColor: color,
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        fill: false,
+                        tension: 0.3,
+                    }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: true, labels: { boxWidth: 12, font: { size: 11 } } },
+                    tooltip: {
+                        callbacks: {
+                            footer: (items) => {
+                                const yr = items[0]?.label;
+                                if (String(yr) === String(data.predict_year)) return `⚡ ML Forecast for ${yr}`;
+                                return '';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: { grid: { color: 'rgba(255,255,255,0.04)' } },
+                    y: { grid: { color: 'rgba(255,255,255,0.04)' }, beginAtZero: true }
+                }
+            }
+        });
+    }
+
+    // ──────────────────────────────────────────────
+    //   TELANGANA DISTRICT MAP (Leaflet + GeoJSON)
+    // ──────────────────────────────────────────────
+
+    // Crime counts per district from Telangana IPC data (passed from backend)
+    const districtCrimeData = {{ district_crime_data | tojson }};
+
+    function buildDistrictMap() {
+        const mapEl = document.getElementById('districtMap');
+        if (!mapEl || typeof L === 'undefined') return;
+
+        const map = L.map('districtMap', {
+            zoomControl: true,
+            attributionControl: false,
+            scrollWheelZoom: false,
+        });
+
+        // Dark tile layer
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            maxZoom: 10
+        }).addTo(map);
+
+        // Load GeoJSON via fetch
+        fetch('/api/telangana-geojson')
+            .then(r => r.json())
+            .then(geojson => {
+                const counts = districtCrimeData;
+                const maxCount = Math.max(...Object.values(counts), 1);
+
+                function getColor(district) {
+                    const d = district.toUpperCase();
+                    const count = counts[d] || 0;
+                    const t = count / maxCount;
+                    if (t > 0.75) return '#ef4444';
+                    if (t > 0.5) return '#f59e0b';
+                    if (t > 0.25) return '#3b82f6';
+                    return '#10b981';
+                }
+
+                const layer = L.geoJSON(geojson, {
+                    style: feature => ({
+                        fillColor: getColor(feature.properties.D_N || ''),
+                        weight: 1.5,
+                        opacity: 1,
+                        color: 'rgba(255,255,255,0.15)',
+                        fillOpacity: 0.7,
+                    }),
+                    onEachFeature: (feature, layer) => {
+                        const name = feature.properties.D_N || 'Unknown';
+                        const count = counts[name.toUpperCase()] || 0;
+                        layer.bindPopup(
+                            `<div style="font-family:'Space Grotesk',sans-serif; padding:4px 8px;">
+                                <div style="font-size:0.9rem; font-weight:800; color:#fff; margin-bottom:4px;">${name}</div>
+                                <div style="font-size:0.8rem; color:#94a3b8;">Recorded crimes: <strong style="color:#3b82f6">${count.toLocaleString()}</strong></div>
+                            </div>`
+                        );
+                        layer.on('mouseover', function () {
+                            this.setStyle({ fillOpacity: 1, weight: 2.5, color: '#fff' });
+                        });
+                        layer.on('mouseout', function () {
+                            layerObj.resetStyle(this);
+                        });
+                    }
+                }).addTo(map);
+                const layerObj = layer;
+                map.fitBounds(layer.getBounds(), { padding: [10, 10] });
+            })
+            .catch(() => {
+                mapEl.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:60px; font-size:0.85rem;">District map unavailable — add /api/telangana-geojson endpoint</div>';
+            });
+
+        // Map legend
+        const legendEl = document.getElementById('mapLegend');
+        if (legendEl) {
+            legendEl.innerHTML = `
+                <span style="background:#10b981; width:12px; height:12px; display:inline-block; border-radius:3px;"></span> Low
+                <span style="background:#3b82f6; width:12px; height:12px; display:inline-block; border-radius:3px; margin-left:8px;"></span> Medium
+                <span style="background:#f59e0b; width:12px; height:12px; display:inline-block; border-radius:3px; margin-left:8px;"></span> High
+                <span style="background:#ef4444; width:12px; height:12px; display:inline-block; border-radius:3px; margin-left:8px;"></span> Critical
+            `;
+        }
+    }
+
+    // ──────────────────────────────────────────────
+    //   LIVE FEED
+    // ──────────────────────────────────────────────
+    const feed = document.getElementById('liveFeedContainer');
+    async function fetchLive() {
+        try {
+            const r = await fetch('/api/live-crimes');
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            const d = await r.json();
+            if (feed.innerText.includes('Establishing')) feed.innerHTML = '';
+            const c = document.createElement('div');
+            c.className = 'alert-premium';
+            c.innerHTML = `
+                <div style="font-size:0.7rem;color:var(--accent-red);font-weight:800;display:flex;justify-content:space-between;">
+                    <span>${d.timestamp}</span>
+                    <span style="color:${d.severity === 'Critical' ? 'var(--accent-red)' : d.severity === 'High' ? '#f59e0b' : 'var(--accent-blue)'};">${d.severity}</span>
+                </div>
+                <div style="font-weight:700;color:#fff;font-size:0.9rem;margin-top:4px;">${d.title}</div>
+                <div style="font-size:0.75rem;color:var(--text-muted);margin-top:3px;">${d.district}</div>`;
+            feed.prepend(c);
+            if (feed.children.length > 5) feed.removeChild(feed.lastChild);
+        } catch (e) {
+            if (feed.innerText.includes('Establishing')) {
+                feed.innerHTML = '<div class="live-placeholder" style="color:var(--accent-red);">Feed unavailable</div>';
+            }
+        }
+    }
+
+    // ──────────────────────────────────────────────
+    //   BOOT — all inside DOMContentLoaded
+    // ──────────────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', () => {
+        startCounters();
+
+        buildHourlyChart();
+        buildGenderChart();
+        buildWeaponChart();
+        buildCrimeDistChart();
+        buildMonthlyChart();
+        buildDistrictMap();
+
+        // Load ML data (anly1 engine)
+        loadMLData();
+
+        // Live feed
+        fetchLive();
+        setInterval(fetchLive, 10000);
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,480 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="notifications-page">
+    <div class="notifications-header">
+        <div>
+            <h1>CRIME NOTIFICATIONS</h1>
+            <p>Live alerts from CCTV monitoring with severity, time, location, camera, confidence, and summary.</p>
+        </div>
+
+        <div class="header-actions">
+            <div class="notif-live" id="liveIndicator" style="display:none;">
+                <div class="live-dot"></div> MONITORING LIVE
+            </div>
+            <a href="/monitoring" class="notif-btn secondary"><i class="fas fa-video"></i> Monitoring</a>
+        </div>
+    </div>
+
+    <div class="notif-stats-grid">
+        <div class="notif-stat-card">
+            <span>Total Alerts</span>
+            <strong id="stat-total">0</strong>
+        </div>
+        <div class="notif-stat-card critical">
+            <span>Critical</span>
+            <strong id="stat-critical">0</strong>
+        </div>
+        <div class="notif-stat-card moderate">
+            <span>Moderate</span>
+            <strong id="stat-moderate">0</strong>
+        </div>
+        <div class="notif-stat-card low">
+            <span>Low</span>
+            <strong id="stat-low">0</strong>
+        </div>
+    </div>
+
+    <div class="notif-rules-card">
+        <h3>Severity Rules</h3>
+        <div class="rules-grid">
+            <div class="rule-pill critical">Critical: murder, kidnapping, knife, gun, weapon-related alerts</div>
+            <div class="rule-pill moderate">Moderate: fighting, chain snatching, robbery, assault-type alerts</div>
+            <div class="rule-pill low">Low: crowding and lower-risk suspicious activity</div>
+        </div>
+    </div>
+
+    <div id="notificationsList" class="notifications-list">
+        <div class="notif-empty">No notifications yet.</div>
+    </div>
+</div>
+
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
+
+    :root {
+        --accent-blue: #3b82f6;
+        --accent-green: #10b981;
+        --accent-red: #ef4444;
+        --accent-orange: #f59e0b;
+        --primary-bg: #0b1120;
+        --text-muted: #94a3b8;
+    }
+
+    body {
+        font-family: 'Space Grotesk', sans-serif;
+        background: var(--primary-bg);
+    }
+
+    .notifications-page {
+        padding: 25px;
+        min-height: calc(100vh - 100px);
+        animation: fadeIn 0.8s ease-out;
+    }
+
+    .notifications-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 22px;
+        flex-wrap: wrap;
+    }
+
+    .notifications-header h1 {
+        color: #fff;
+        margin: 0;
+        font-size: clamp(1.7rem, 4vw, 2.3rem);
+        letter-spacing: -0.8px;
+    }
+
+    .notifications-header p {
+        margin: 8px 0 0 0;
+        color: var(--text-muted);
+        max-width: 850px;
+        line-height: 1.5;
+    }
+
+    .header-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .notif-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 18px;
+        border-radius: 12px;
+        background: var(--accent-blue);
+        color: #fff;
+        text-decoration: none;
+        font-weight: 700;
+        border: none;
+    }
+
+    .notif-btn.secondary {
+        background: rgba(255, 255, 255, 0.08);
+    }
+
+    .notif-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 14px;
+        margin-bottom: 18px;
+    }
+
+    .notif-stat-card,
+    .notif-rules-card,
+    .notif-card {
+        background: rgba(30, 41, 59, 0.45);
+        backdrop-filter: blur(15px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 18px;
+        box-sizing: border-box;
+    }
+
+    .notif-stat-card {
+        padding: 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .notif-stat-card span {
+        color: var(--text-muted);
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        font-weight: 700;
+    }
+
+    .notif-stat-card strong {
+        color: #fff;
+        font-size: 1.7rem;
+    }
+
+    .notif-stat-card.critical strong {
+        color: #fca5a5;
+    }
+
+    .notif-stat-card.moderate strong {
+        color: #fcd34d;
+    }
+
+    .notif-stat-card.low strong {
+        color: #93c5fd;
+    }
+
+    .notif-rules-card {
+        padding: 18px;
+        margin-bottom: 18px;
+    }
+
+    .notif-rules-card h3 {
+        margin: 0 0 14px 0;
+        color: #fff;
+        font-size: 0.95rem;
+        letter-spacing: 0.8px;
+        text-transform: uppercase;
+    }
+
+    .rules-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .rule-pill {
+        padding: 10px 12px;
+        border-radius: 999px;
+        font-size: 0.78rem;
+        font-weight: 700;
+        color: #fff;
+    }
+
+    .rule-pill.critical {
+        background: rgba(239, 68, 68, 0.92);
+    }
+
+    .rule-pill.moderate {
+        background: rgba(245, 158, 11, 0.92);
+    }
+
+    .rule-pill.low {
+        background: rgba(59, 130, 246, 0.92);
+    }
+
+    .notifications-list {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+    }
+
+    .notif-card {
+        padding: 18px;
+    }
+
+    .notif-top-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-bottom: 10px;
+    }
+
+    .notif-crime {
+        color: #fff;
+        font-size: 1rem;
+        font-weight: 800;
+        letter-spacing: 0.2px;
+    }
+
+    .notif-severity {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 90px;
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 0.68rem;
+        font-weight: 800;
+        letter-spacing: 0.8px;
+        text-transform: uppercase;
+        color: #fff;
+    }
+
+    .severity-critical {
+        background: rgba(239, 68, 68, 0.95);
+    }
+
+    .severity-moderate {
+        background: rgba(245, 158, 11, 0.95);
+    }
+
+    .severity-low {
+        background: rgba(59, 130, 246, 0.95);
+    }
+
+    .notif-meta-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 12px;
+    }
+
+    .meta-cell {
+        background: rgba(255, 255, 255, 0.03);
+        border-radius: 12px;
+        padding: 12px;
+        color: var(--text-muted);
+        font-size: 0.76rem;
+        line-height: 1.4;
+    }
+
+    .meta-cell strong {
+        display: block;
+        color: #fff;
+        font-size: 0.86rem;
+        margin-top: 4px;
+    }
+
+    .notif-summary {
+        margin-top: 10px;
+        background: rgba(15, 23, 42, 0.7);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 12px;
+        padding: 12px;
+        color: #dbeafe;
+        font-size: 0.82rem;
+        line-height: 1.5;
+    }
+
+    .notif-empty {
+        color: var(--text-muted);
+        font-size: 0.9rem;
+        padding: 24px;
+        background: rgba(30, 41, 59, 0.45);
+        border-radius: 18px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .notif-live {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: rgba(16, 185, 129, 0.12);
+        color: #10b981;
+        border: 1px solid rgba(16, 185, 129, 0.25);
+        border-radius: 999px;
+        padding: 7px 14px;
+        font-size: 0.75rem;
+        font-weight: 800;
+        letter-spacing: 0.8px;
+    }
+
+    .live-dot {
+        width: 7px;
+        height: 7px;
+        background: #10b981;
+        border-radius: 50%;
+        animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+        0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6); }
+        70% { box-shadow: 0 0 0 7px rgba(16, 185, 129, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+    }
+
+    /* Severity left-border accent */
+    .severity-border-critical { border-left: 4px solid #ef4444 !important; }
+    .severity-border-moderate { border-left: 4px solid #f59e0b !important; }
+    .severity-border-low      { border-left: 4px solid #3b82f6 !important; }
+
+    /* Compact metadata chip row */
+    .notif-meta-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 12px 0 10px;
+    }
+
+    .meta-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.07);
+        border-radius: 999px;
+        padding: 5px 12px;
+        font-size: 0.72rem;
+        color: #cbd5e1;
+        font-family: 'JetBrains Mono', monospace;
+    }
+
+    .meta-chip i {
+        color: var(--accent-blue);
+        font-size: 0.68rem;
+    }
+
+    @media (max-width: 980px) {
+        .notif-stats-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .notif-meta-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 560px) {
+        .notif-stats-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<script>
+    let knownIds = new Set();
+    let allItems = [];
+
+    async function loadNotifications() {
+        try {
+            const response = await fetch('/api/notifications');
+            if (!response.ok) return;
+            const data = await response.json();
+            const items = data.items || [];
+
+            // Check for new items
+            const hasNew = items.some(item => !knownIds.has(item.id));
+            if (hasNew || allItems.length !== items.length) {
+                allItems = items;
+                items.forEach(item => knownIds.add(item.id));
+                renderNotifications(items);
+            }
+        } catch (error) {
+            console.error(error);
+        }
+    }
+
+    function formatVideoTime(sec) {
+        if (sec == null) return '--';
+        const m = Math.floor(sec / 60);
+        const s = Math.floor(sec % 60);
+        return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')} in video`;
+    }
+
+    function severityIcon(sev) {
+        const s = (sev || '').toUpperCase();
+        if (s === 'CRITICAL') return '🔴';
+        if (s === 'MODERATE') return '🟠';
+        return '🔵';
+    }
+
+    function renderNotifications(items) {
+        const container = document.getElementById('notificationsList');
+
+        const counts = {
+            total: items.length,
+            critical: items.filter(i => (i.severity || '').toUpperCase() === 'CRITICAL').length,
+            moderate: items.filter(i => (i.severity || '').toUpperCase() === 'MODERATE').length,
+            low: items.filter(i => (i.severity || '').toUpperCase() === 'LOW').length,
+        };
+
+        document.getElementById('stat-total').innerText = counts.total;
+        document.getElementById('stat-critical').innerText = counts.critical;
+        document.getElementById('stat-moderate').innerText = counts.moderate;
+        document.getElementById('stat-low').innerText = counts.low;
+        document.getElementById('liveIndicator').style.display = 'flex';
+
+        if (!items.length) {
+            container.innerHTML = '<div class="notif-empty"><i class="fas fa-shield-alt"></i> No confirmed crime events detected yet. Monitoring is active.</div>';
+            return;
+        }
+
+        container.innerHTML = items.map((item, idx) => {
+            const severity = String(item.severity || 'LOW').toLowerCase();
+            const confidencePct = Math.round((item.confidence || 0) * 100);
+            const videoTime = formatVideoTime(item.video_time_sec);
+            const icon = severityIcon(item.severity);
+            const frameInfo = item.frame_index ? `Frame #${item.frame_index}` : '';
+
+            return `
+                <div class="notif-card severity-border-${severity}" id="notif-${item.id || idx}">
+                    <div class="notif-top-row">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <span style="font-size:1.3rem;">${icon}</span>
+                            <div>
+                                <div class="notif-crime">${item.crime || 'Alert'}</div>
+                                <div style="font-size:0.72rem; color:var(--text-muted); margin-top:2px;">${item.time || '--'}</div>
+                            </div>
+                        </div>
+                        <div class="notif-severity severity-${severity}">${item.severity || 'LOW'}</div>
+                    </div>
+
+                    <div class="notif-meta-row">
+                        <div class="meta-chip"><i class="fas fa-map-marker-alt"></i> ${item.location || 'Unknown'}</div>
+                        <div class="meta-chip"><i class="fas fa-video"></i> ${item.camera || 'N/A'}</div>
+                        <div class="meta-chip"><i class="fas fa-clock"></i> ${videoTime}</div>
+                        <div class="meta-chip"><i class="fas fa-percentage"></i> ${confidencePct}% confidence</div>
+                        ${frameInfo ? `<div class="meta-chip"><i class="fas fa-film"></i> ${frameInfo}</div>` : ''}
+                    </div>
+
+                    <div class="notif-summary">${item.summary || 'Crime detected by AI surveillance system.'}</div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        loadNotifications();
+        setInterval(loadNotifications, 3000);
+    });
+</script>
+{% endblock %}

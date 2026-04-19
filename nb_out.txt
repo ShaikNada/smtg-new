@@ -1,0 +1,107 @@
+﻿=== Cell 0 [code] ===
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import r2_score, mean_absolute_error
+
+=== Cell 1 [code] ===
+df = pd.read_csv("telangana_district_crime_totals_clean.csv")
+print(df.head())
+
+=== Cell 2 [code] ===
+df_long = df.melt(
+    id_vars=['District'],
+    var_name='Year',
+    value_name='Crime_Count'
+)
+
+# Extract year number
+df_long['Year'] = df_long['Year'].str.extract(r'(\d+)').astype(int)
+
+print(df_long.head())
+
+=== Cell 3 [code] ===
+df_long = df_long.dropna()
+
+df_long['Crime_Count'] = df_long['Crime_Count'].astype(float)
+
+
+=== Cell 4 [code] ===
+for district in df_long['District'].unique():
+    data = df_long[df_long['District'] == district]
+    plt.plot(data['Year'], data['Crime_Count'], label=district)
+
+plt.legend()
+plt.xlabel("Year")
+plt.ylabel("Crime Count")
+plt.title("Crime Trends by District")
+plt.show()
+
+=== Cell 5 [code] ===
+models = {}
+scores = {}
+
+for district in df_long['District'].unique():
+    data = df_long[df_long['District'] == district]
+    
+    X = data[['Year']]
+    y = data['Crime_Count']
+    
+    model = LinearRegression()
+    model.fit(X, y)
+    
+    y_pred = model.predict(X)
+    
+    r2 = r2_score(y, y_pred)
+    mae = mean_absolute_error(y, y_pred)
+    
+    models[district] = model
+    scores[district] = (r2, mae)
+
+=== Cell 6 [code] ===
+final_models = {}
+
+for district, (r2, mae) in scores.items():
+    if r2 >= 0.6:
+        final_models[district] = models[district]
+
+=== Cell 7 [code] ===
+def predict_district_crime(year):
+    results = []
+    
+    for district, model in final_models.items():
+        input_df = pd.DataFrame([[year]], columns=['Year'])
+        pred = round(model.predict(input_df)[0])
+        
+        results.append([district, pred])
+    
+    return results
+
+=== Cell 8 [code] ===
+year = int(input("Enter year: "))
+
+predictions = predict_district_crime(year)
+
+pred_df = pd.DataFrame(predictions, columns=["District", "Predicted_Crime"])
+print(pred_df)
+
+=== Cell 9 [code] ===
+pred_df_sorted = pred_df.sort_values(by='Predicted_Crime', ascending=False)
+
+plt.figure(figsize=(10,5))
+
+plt.bar(pred_df_sorted['District'], pred_df_sorted['Predicted_Crime'])
+
+plt.xticks(rotation=45, ha='right')
+plt.xlabel("District")
+plt.ylabel("Predicted Crime Count")
+plt.title(f"District-wise Crime Prediction for {year}")
+
+plt.tight_layout()
+plt.show()
+
+=== Cell 10 [code] ===
+
+

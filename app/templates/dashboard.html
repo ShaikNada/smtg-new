@@ -1,157 +1,355 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div style="margin-bottom: 30px;">
-    <h1 style="font-size: 1.75rem; font-weight: 700;">CENTRAL COMMAND <span
-            style="font-weight: 300; opacity: 0.6;">OPERATIONS</span></h1>
-    <div style="font-size: 0.65rem; color: var(--text-muted); letter-spacing: 2px; text-transform: uppercase;">
-        RESTRICTED ACCESS — SECURE CRIME INCIDENT RISK INTELLIGENCE SYSTEM
-    </div>
-</div>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+    .db-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; margin-bottom: 22px; }
+    .db-grid-2 { display: grid; grid-template-columns: 2fr 1fr; gap: 18px; margin-bottom: 22px; }
+    .db-grid-equal { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 22px; }
+    @media (max-width: 1100px) { .db-grid-4 { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 700px) { .db-grid-4 { grid-template-columns: 1fr; } .db-grid-2, .db-grid-equal { grid-template-columns: 1fr; } }
 
-<div class="stats-grid">
-    <div class="stat-card">
-        <div class="stat-label">Total Cases</div>
-        <div class="stat-value">{{ total_firs }}</div>
-        <div
-            style="margin-top: 15px; background: var(--accent-blue); width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
-            <i class="fas fa-file-invoice"></i>
-        </div>
-    </div>
-    <div class="stat-card" style="border-left: 4px solid var(--accent-green);">
-        <div class="stat-label">Solved Cases</div>
-        <div class="stat-value">{{ total_firs - open_cases }}</div>
-        <div style="margin-top: 15px; color: var(--accent-green);">
-            <i class="fas fa-check-circle fa-2x"></i>
-        </div>
-    </div>
-    <div class="stat-card" style="border-left: 4px solid var(--accent-orange);">
-        <div class="stat-label">Pending Cases</div>
-        <div class="stat-value">{{ open_cases }}</div>
-        <div style="margin-top: 15px; color: var(--accent-orange);">
-            <i class="fas fa-clock fa-2x"></i>
-        </div>
-    </div>
-    <div class="stat-card" style="border-left: 4px solid var(--accent-red);">
-        <div class="stat-label">Critical Investigations</div>
-        <div class="stat-value">{{ critical_cases }}</div>
-        <div style="margin-top: 15px; color: var(--accent-red);">
-            <i class="fas fa-exclamation-triangle fa-2x"></i>
-        </div>
-    </div>
-</div>
+    .kpi-card {
+        background: var(--secondary-bg, #1e293b);
+        border: 1px solid var(--border-color, rgba(255,255,255,0.08));
+        border-radius: 14px;
+        padding: 20px 22px;
+        display: flex; flex-direction: column; gap: 8px;
+        transition: transform .2s;
+    }
+    .kpi-card:hover { transform: translateY(-3px); }
+    .kpi-label { font-size: .72rem; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-muted, #64748b); font-weight: 600; }
+    .kpi-value { font-size: 2rem; font-weight: 800; line-height: 1; }
+    .kpi-sub { font-size: .75rem; color: var(--text-muted, #64748b); display: flex; align-items: center; gap: 5px; }
 
-<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 20px;">
+    .panel {
+        background: var(--secondary-bg, #1e293b);
+        border: 1px solid var(--border-color, rgba(255,255,255,0.08));
+        border-radius: 14px;
+        overflow: hidden;
+    }
+    .panel-header {
+        padding: 16px 20px;
+        font-size: .8rem; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+        border-bottom: 1px solid var(--border-color, rgba(255,255,255,0.06));
+        display: flex; align-items: center; gap: 8px;
+    }
+    .panel-header i { color: var(--accent-blue, #3b82f6); }
+    .panel-body { padding: 18px 20px; }
+
+    .leaflet-tooltip-dark {
+        background: #0f172a !important;
+        color: #f8fafc !important;
+        border: 1px solid rgba(99,179,237,.35) !important;
+        border-radius: 8px !important;
+        font-size: .82rem !important;
+        padding: 6px 10px !important;
+        box-shadow: 0 4px 20px rgba(0,0,0,.5) !important;
+    }
+    .leaflet-tooltip-dark::before { display: none !important; }
+
+    /* district label permanent markers */
+    .district-label {
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        font-size: 9px !important;
+        font-weight: 700 !important;
+        color: #000 !important;
+        text-shadow: 0 0 3px #fff, 0 0 3px #fff !important;
+        white-space: nowrap !important;
+        pointer-events: none !important;
+    }
+
+    .legend-box {
+        display: flex; flex-wrap: wrap; gap: 10px; padding: 10px 20px 14px;
+        font-size: .72rem; color: var(--text-muted, #64748b);
+    }
+    .legend-item { display: flex; align-items: center; gap: 5px; }
+    .legend-swatch { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+
+    .hotspot-row {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 9px 0;
+        border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+    .hotspot-row:last-child { border-bottom: none; }
+    .hotspot-bar-track { background: rgba(255,255,255,0.06); border-radius: 4px; height: 4px; flex: 1; margin: 0 10px; }
+    .hotspot-bar-fill { height: 4px; border-radius: 4px; background: linear-gradient(90deg, #f59e0b, #ef4444); }
+
+    .badge {
+        padding: 3px 9px; border-radius: 5px; font-size: .7rem; font-weight: 700;
+    }
+    .badge-critical { background: rgba(239,68,68,.18); color: #ef4444; }
+    .badge-high     { background: rgba(245,158,11,.18); color: #f59e0b; }
+    .badge-medium   { background: rgba(59,130,246,.18); color: #3b82f6; }
+    .badge-low      { background: rgba(16,185,129,.18); color: #10b981; }
+</style>
+
+<!-- ── PAGE TITLE ── -->
+<div style="margin-bottom:24px; display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:10px;">
     <div>
-        <div class="chart-container">
-            <div class="chart-header">Crime Type Distribution</div>
-            <canvas id="crimeTypeChart" height="200"></canvas>
+        <h1 style="font-size:1.6rem; font-weight:800; margin:0;">CENTRAL COMMAND
+            <span style="font-weight:300; opacity:.6;">OPERATIONS</span></h1>
+        <div style="font-size:.62rem; color:var(--text-muted); letter-spacing:2px; text-transform:uppercase; margin-top:4px;">
+            RESTRICTED ACCESS — SECURE CRIME INCIDENT RISK INTELLIGENCE SYSTEM
         </div>
+    </div>
+    <div style="font-size:.75rem; color:var(--text-muted);">
+        <i class="fas fa-circle" style="color:#10b981; font-size:.5rem; margin-right:5px; animation:pulse 2s infinite;"></i>
+        Live Data
+    </div>
+</div>
 
-        <div class="chart-container">
-            <div class="chart-header">Recent FIRs</div>
-            <div class="table-responsive">
-                <table class="table-custom">
-                    <thead>
-                        <tr>
-                            <th>FIR No</th>
-                            <th>Title</th>
-                            <th>Priority</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for fir in recent_firs %}
-                        <tr>
-                            <td>{{ fir.fir_number }}</td>
-                            <td>{{ fir.title }}</td>
-                            <td>
-                                <span style="background: 
-                                    {% if fir.priority == 'Critical' %}rgba(239, 68, 68, 0.2); color: var(--accent-red)
-                                    {% elif fir.priority == 'High' %}rgba(245, 158, 11, 0.2); color: var(--accent-orange)
-                                    {% else %}rgba(59, 130, 246, 0.2); color: var(--accent-blue)
-                                    {% endif %};
-                                    padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 600;">
-                                    {{ fir.priority }}
-                                </span>
-                            </td>
-                            <td>{{ fir.status }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+<!-- ── KPI CARDS ── -->
+<div class="db-grid-4">
+    <div class="kpi-card" style="border-left:3px solid #3b82f6;">
+        <div class="kpi-label"><i class="fas fa-folder-open"></i> Total Cases</div>
+        <div class="kpi-value" style="color:#3b82f6;">{{ total_firs }}</div>
+        <div class="kpi-sub"><i class="fas fa-database"></i> In system</div>
+    </div>
+    <div class="kpi-card" style="border-left:3px solid #10b981;">
+        <div class="kpi-label"><i class="fas fa-check-circle"></i> Solved</div>
+        <div class="kpi-value" style="color:#10b981;">{{ total_firs - open_cases }}</div>
+        <div class="kpi-sub"><i class="fas fa-thumbs-up"></i> Closed cases</div>
+    </div>
+    <div class="kpi-card" style="border-left:3px solid #f59e0b;">
+        <div class="kpi-label"><i class="fas fa-clock"></i> Open / Pending</div>
+        <div class="kpi-value" style="color:#f59e0b;">{{ open_cases }}</div>
+        <div class="kpi-sub"><i class="fas fa-spinner"></i> Requires action</div>
+    </div>
+    <div class="kpi-card" style="border-left:3px solid #ef4444;">
+        <div class="kpi-label"><i class="fas fa-exclamation-triangle"></i> Critical</div>
+        <div class="kpi-value" style="color:#ef4444;">{{ critical_cases }}</div>
+        <div class="kpi-sub"><i class="fas fa-bell"></i> High priority</div>
+    </div>
+</div>
+
+<!-- ── ROW 2 — Recent FIRs  +  Yearly Trend ── -->
+<div class="db-grid-2">
+    <!-- Recent FIRs -->
+    <div class="panel">
+        <div class="panel-header"><i class="fas fa-list-alt"></i> Recent FIR Records</div>
+        <div class="panel-body" style="padding:0;">
+            <table style="width:100%; border-collapse:collapse; font-size:.82rem;">
+                <thead>
+                    <tr style="border-bottom:1px solid rgba(255,255,255,0.06);">
+                        <th style="padding:10px 18px; text-align:left; color:var(--text-muted); font-weight:600; font-size:.7rem; letter-spacing:1px;">FIR NO</th>
+                        <th style="padding:10px 18px; text-align:left; color:var(--text-muted); font-weight:600; font-size:.7rem; letter-spacing:1px;">TITLE</th>
+                        <th style="padding:10px 18px; text-align:left; color:var(--text-muted); font-weight:600; font-size:.7rem; letter-spacing:1px;">PRIORITY</th>
+                        <th style="padding:10px 18px; text-align:left; color:var(--text-muted); font-weight:600; font-size:.7rem; letter-spacing:1px;">STATUS</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for fir in recent_firs %}
+                    <tr style="border-bottom:1px solid rgba(255,255,255,0.04); transition:background .15s;"
+                        onmouseover="this.style.background='rgba(255,255,255,0.03)'"
+                        onmouseout="this.style.background='transparent'">
+                        <td style="padding:11px 18px; color:#94a3b8; font-family:monospace;">{{ fir.fir_number }}</td>
+                        <td style="padding:11px 18px; font-weight:600; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ fir.title }}</td>
+                        <td style="padding:11px 18px;">
+                            <span class="badge badge-{{ fir.priority | lower }}">{{ fir.priority }}</span>
+                        </td>
+                        <td style="padding:11px 18px; color:#94a3b8;">{{ fir.status }}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="4" style="padding:24px; text-align:center; color:var(--text-muted);">No records yet</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Yearly Trend + Hotspots stacked -->
+    <div style="display:flex; flex-direction:column; gap:18px;">
+        <div class="panel">
+            <div class="panel-header"><i class="fas fa-chart-line"></i> Yearly Crime Trend</div>
+            <div class="panel-body">
+                <div style="position:relative; height:160px; width:100%;">
+                    <canvas id="monthlyTrendChart"></canvas>
+                </div>
             </div>
         </div>
-    </div>
-
-    <div>
-        <div class="chart-container">
-            <div class="chart-header">Regional Hotspots</div>
-            <div style="display: flex; flex-direction: column; gap: 15px;">
+        <div class="panel">
+            <div class="panel-header"><i class="fas fa-fire"></i> Top Hotspot Districts</div>
+            <div class="panel-body" style="padding:6px 20px 14px;">
+                {% set max_c = top_districts[0].count if top_districts else 1 %}
                 {% for item in top_districts %}
-                <div
-                    style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: var(--card-bg); border-radius: 8px;">
-                    <span style="font-size: 0.9rem;">{{ item.district }}</span>
-                    <span style="font-weight: 700; color: var(--accent-orange);">{{ item.count }}</span>
+                <div class="hotspot-row">
+                    <span style="font-size:.82rem; font-weight:600; min-width:100px;">{{ item.district }}</span>
+                    <div class="hotspot-bar-track">
+                        <div class="hotspot-bar-fill" style="width:{{ [(item.count * 100 / max_c)|round|int, 100]|min }}%;"></div>
+                    </div>
+                    <span style="font-size:.78rem; font-weight:700; color:#f59e0b; min-width:50px; text-align:right;">{{ item.count }}</span>
                 </div>
                 {% endfor %}
             </div>
         </div>
+    </div>
+</div>
 
-        <div class="chart-container">
-            <div class="chart-header">Monthly Trend</div>
-            <canvas id="monthlyTrendChart" height="200"></canvas>
+<!-- ── ROW 3 — Telangana Map  +  District vs Crimes ── -->
+<div class="db-grid-equal">
+    <!-- Telangana Heatmap -->
+    <div class="panel">
+        <div class="panel-header"><i class="fas fa-map-marked-alt"></i> Telangana District Crime Heatmap</div>
+        <div id="districtMap" style="height:420px;"></div>
+        <div class="legend-box">
+            <div class="legend-item"><div class="legend-swatch" style="background:#ef4444;"></div> Critical (&gt;75%)</div>
+            <div class="legend-item"><div class="legend-swatch" style="background:#f59e0b;"></div> Moderate (50–75%)</div>
+            <div class="legend-item"><div class="legend-swatch" style="background:#3b82f6;"></div> Low (25–50%)</div>
+            <div class="legend-item"><div class="legend-swatch" style="background:#10b981;"></div> Safe (&lt;25%)</div>
+        </div>
+    </div>
+
+    <!-- District vs Crimes Bar -->
+    <div class="panel">
+        <div class="panel-header"><i class="fas fa-chart-bar"></i> District vs Total Crimes</div>
+        <div class="panel-body">
+            <div style="position:relative; height:420px; width:100%;">
+                <canvas id="districtBarChart"></canvas>
+            </div>
         </div>
     </div>
 </div>
 
+<!-- ── DATA ── -->
 <script>
-    const crimeDistribution = {{ crime_distribution | tojson }};
     const monthlyTrend = {{ monthly_trend | tojson }};
+    const districtCrimeData = {{ district_crime_data | tojson }};
+    let districtByType = {};  // loaded async for map tooltips
 
-    new Chart(document.getElementById("crimeTypeChart"), {
-        type: "bar",
+    // ── Yearly Trend Chart ──
+    new Chart(document.getElementById('monthlyTrendChart'), {
+        type: 'line',
         data: {
-            labels: crimeDistribution.map(item => item.crime_type),
+            labels: monthlyTrend.map(d => d.month),
             datasets: [{
-                label: "Cases",
-                data: crimeDistribution.map(item => item.count),
-                backgroundColor: '#3b82f6aa',
-                borderColor: '#3b82f6',
-                borderWidth: 1
+                data: monthlyTrend.map(d => d.count),
+                borderColor: '#10b981', borderWidth: 2, tension: 0.4,
+                fill: true, backgroundColor: 'rgba(16,185,129,0.08)',
+                pointRadius: 4, pointBackgroundColor: '#10b981'
             }]
         },
         options: {
-            responsive: true,
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
             scales: {
-                y: { grid: { color: '#ffffff11' }, ticks: { color: '#94a3b8' } },
-                x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
-            },
-            plugins: { legend: { display: false } }
+                x: { grid: { display: false }, ticks: { color: '#64748b', font: { size: 11 } } },
+                y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#64748b', font: { size: 11 } }, beginAtZero: true }
+            }
         }
     });
 
-    new Chart(document.getElementById("monthlyTrendChart"), {
-        type: "line",
-        data: {
-            labels: monthlyTrend.map(item => item.month),
-            datasets: [{
-                label: "FIR Count",
-                data: monthlyTrend.map(item => item.count),
-                borderColor: '#10b981',
-                tension: 0.3,
-                fill: true,
-                backgroundColor: '#10b98111'
-            }]
-        },
-        options: {
-            responsive: true,
-            scales: {
-                y: { display: false },
-                x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
+    // ── District Bar Chart (vertical, top 15, color-coded) ──
+    const sortedDistricts = Object.entries(districtCrimeData).sort((a,b) => b[1]-a[1]).slice(0,15);
+    if (sortedDistricts.length > 0) {
+        new Chart(document.getElementById('districtBarChart'), {
+            type: 'bar',
+            data: {
+                labels: sortedDistricts.map(d => d[0]),
+                datasets: [{
+                    label: 'Total Crimes',
+                    data: sortedDistricts.map(d => d[1]),
+                    backgroundColor: sortedDistricts.map((d, i, arr) => {
+                        const t = d[1] / arr[0][1];
+                        if (t > 0.75) return 'rgba(239,68,68,0.75)';
+                        if (t > 0.5)  return 'rgba(245,158,11,0.75)';
+                        if (t > 0.25) return 'rgba(59,130,246,0.75)';
+                        return 'rgba(16,185,129,0.75)';
+                    }),
+                    borderRadius: 5, borderWidth: 0
+                }]
             },
-            plugins: { legend: { display: false } }
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { grid: { display: false }, ticks: { color: '#94a3b8', maxRotation: 40, minRotation: 40, font: { size: 10 } } },
+                    y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#94a3b8', font: { size: 10 } }, beginAtZero: true }
+                }
+            }
+        });
+    }
+
+    // ── Telangana District Map (with per-type tooltips) ──
+    const mapEl = document.getElementById('districtMap');
+    if (mapEl && Object.keys(districtCrimeData).length > 0) {
+        const map = L.map('districtMap', { zoomControl: true, scrollWheelZoom: true })
+                      .setView([17.85, 79.12], 7);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; OSM &copy; CARTO', subdomains: 'abcd', maxZoom: 19
+        }).addTo(map);
+
+        const maxCount = Math.max(...Object.values(districtCrimeData));
+        function getColor(count) {
+            const t = count / maxCount;
+            if (t > 0.75) return '#ef4444';
+            if (t > 0.5)  return '#f59e0b';
+            if (t > 0.25) return '#3b82f6';
+            return '#10b981';
         }
-    });
+        function buildTooltipHtml(rawName, name) {
+            const total = districtCrimeData[name] || 0;
+            const color = getColor(total);
+            let html = `<strong style="font-size:.9rem;color:#fff;">${rawName}</strong><br>`;
+            const crimes = districtByType[name];
+            if (crimes) {
+                const entries = Object.entries(crimes).filter(([k]) => k !== 'TOTAL').sort((a,b) => b[1]-a[1]);
+                entries.forEach(([k, v]) => {
+                    html += `<span style="color:#94a3b8;">${k}:</span> <strong style="color:#e2e8f0;">${v.toLocaleString()}</strong><br>`;
+                });
+            }
+            html += `<span style="color:#94a3b8;">Total:</span> <strong style="color:${color};">${total.toLocaleString()}</strong>`;
+            return html;
+        }
+
+        // Pre-load per-type data
+        fetch('/api/district-crimes').then(r => r.json()).then(d => { districtByType = d; }).catch(()=>{});
+
+        fetch('/api/telangana-geojson')
+            .then(r => r.json())
+            .then(geo => {
+                const geojsonLayer = L.geoJson(geo, {
+                    style: feat => {
+                        const name = (feat.properties.D_N || '').toUpperCase();
+                        return {
+                            fillColor: getColor(districtCrimeData[name] || 0),
+                            fillOpacity: 0.72, color: 'rgba(255,255,255,0.25)', weight: 1.2
+                        };
+                    },
+                    onEachFeature: (feat, layer) => {
+                        const rawName = feat.properties.D_N || 'UNKNOWN';
+                        const name = rawName.toUpperCase();
+                        layer.bindTooltip(() => buildTooltipHtml(rawName, name),
+                            { sticky: true, opacity: 1, className: 'leaflet-tooltip-dark' });
+                        layer.on({
+                            mouseover(e) { e.target.setStyle({ fillOpacity: 0.92, weight: 2.5, color: '#fff' }); },
+                            mouseout(e)  { geojsonLayer.resetStyle(e.target); }
+                        });
+                    }
+                }).addTo(map);
+
+                // Permanent district name labels
+                geo.features.forEach(feat => {
+                    try {
+                        const latlng = L.geoJson(feat).getBounds().getCenter();
+                        const rawName = feat.properties.D_N || '';
+                        L.marker(latlng, {
+                            icon: L.divIcon({
+                                className: 'district-label',
+                                html: `<span style="font-size:8.5px;font-weight:800;color:#000;text-shadow:0 0 4px #fff,0 0 4px #fff;white-space:nowrap;pointer-events:none;">${rawName}</span>`,
+                                iconSize: [80, 14], iconAnchor: [40, 7]
+                            }),
+                            interactive: false
+                        }).addTo(map);
+                    } catch(e) {}
+                });
+                map.fitBounds(geojsonLayer.getBounds(), { padding: [10, 10] });
+            })
+            .catch(err => console.error('Map error:', err));
+    }
 </script>
 {% endblock %}

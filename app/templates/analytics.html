@@ -37,14 +37,8 @@
             <div style="display:flex; align-items:center; gap:8px;">
                 <label style="color:var(--text-muted); font-size:0.8rem; font-weight:700; letter-spacing:1px;">PREDICT
                     YEAR</label>
-                <select id="predictYearSelect" onchange="loadMLData()"
-                    style="background:rgba(255,255,255,0.07); color:#fff; border:1px solid var(--glass-border); border-radius:10px; padding:8px 14px; font-weight:700; cursor:pointer; font-size:0.85rem;">
-                    <option value="2019">2019</option>
-                    <option value="2020" selected>2020</option>
-                    <option value="2021">2021</option>
-                    <option value="2022">2022</option>
-                    <option value="2023">2023</option>
-                </select>
+                <input type="number" id="predictYearSelect" value="2020" min="2016" max="2100" style="background:rgba(255,255,255,0.07); color:#fff; border:1px solid var(--glass-border); border-radius:10px; padding:8px 14px; font-weight:700; width: 80px; font-size:0.85rem;">
+                <button onclick="loadMLData()" class="btn-premium" style="padding: 8px 14px; border-radius: 8px; font-size: 0.8rem;">Predict</button>
             </div>
             <button class="btn-premium" onclick="location.reload()"
                 data-tippy-content="Refresh all intelligence data points.">
@@ -57,18 +51,6 @@
         </div>
     </div>
 
-    <!-- Executive Summary Card -->
-    <div class="glass-card summary-card" style="margin-bottom: 30px;">
-        <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 18px;">
-            <div class="summary-icon"><i class="fas fa-robot"></i></div>
-            <h3 style="margin: 0; font-size: 1.3rem; color: #fff; font-weight: 700;">COMMANDER'S SUMMARY</h3>
-            <i class="fas fa-info-circle info-icon"
-                data-tippy-content="AI analysis of the current crime landscape across all districts."></i>
-        </div>
-        <div style="font-size: 1.1rem; color: #cbd5e1; line-height: 1.8; opacity: 0.9;">
-            {{ summary_text | safe }}
-        </div>
-    </div>
 
     <!-- ═══════════════════════════════════════════════════════════════
          SECTION 1: anly1 ML ENGINE — FULLY INTEGRATED
@@ -177,113 +159,38 @@
     </div>
 
     <!-- ═══════════════════════════════════════════════════════════════
-         SECTION 3: MAIN ANALYSIS GRID
+         SECTION 3: DISTRICT INTELLIGENCE — below the ML charts
     ═══════════════════════════════════════════════════════════════ -->
-    <div class="master-analysis-grid">
-        <!-- Left Side -->
-        <div class="analysis-stack">
-            <!-- Hourly Chart -->
-            <div class="glass-card chart-container-inner" style="height: auto;">
-                <div class="section-header" style="margin-bottom: 20px; padding:25px 25px 0;">
-                    <h3><i class="fas fa-clock"></i> HOURLY RISK INTENSITY</h3>
-                    <div style="font-size:0.8rem; color:var(--text-muted); margin-top:5px;">Red = Night hours (6PM–6AM)
-                    </div>
-                </div>
-                <div style="height: 300px; width: 100%; padding:0 25px 25px;">
-                    <canvas id="hourlyBarChart"></canvas>
-                </div>
-            </div>
+    <div style="margin-top:30px; margin-bottom:12px; display:flex; align-items:center; gap:12px;">
+        <div style="height:2px; flex:1; background:linear-gradient(90deg, var(--accent-amber,#f59e0b), transparent);"></div>
+        <span style="color:var(--accent-amber,#f59e0b); font-size:0.75rem; font-weight:800; letter-spacing:2px;">DISTRICT INTELLIGENCE</span>
+        <div style="height:2px; flex:1; background:linear-gradient(270deg, var(--accent-amber,#f59e0b), transparent);"></div>
+    </div>
 
-            <!-- Demographics and Weapons -->
-            <div class="secondary-metrics-grid">
-                <div class="glass-card chart-container-inner">
-                    <h3 class="inner-title"><i class="fas fa-users-cog"></i> VICTIM RISK</h3>
-                    <div class="doughnut-content">
-                        <div class="canvas-wrap">
-                            <canvas id="genderChart"></canvas>
-                        </div>
-                        <div class="doughnut-info">
-                            <div class="mini-metric"><span>Youth (0–18):</span> <strong>{{ age_groups['0-18']
-                                    }}</strong></div>
-                            <div class="mini-metric"><span>Adult (19–35):</span> <strong>{{ age_groups['19-35']
-                                    }}</strong></div>
-                            <div class="mini-metric"><span>Mid (36–55):</span> <strong>{{ age_groups['36-55']
-                                    }}</strong></div>
-                            <div class="mini-metric"><span>Senior (55+):</span> <strong>{{ age_groups['55+'] }}</strong>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="glass-card chart-container-inner">
-                    <h3 class="inner-title"><i class="fas fa-shield-virus"></i> WEAPON USAGE</h3>
-                    <div style="height: 220px; width: 100%; padding:0 15px 15px;">
-                        <canvas id="weaponChart"></canvas>
-                    </div>
-                </div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-bottom:30px;">
+        <!-- District vs Crimes horizontal bar -->
+        <div class="glass-card chart-container-inner">
+            <div class="section-header" style="padding:22px 22px 0;">
+                <h3><i class="fas fa-chart-bar"></i> DISTRICT VS CRIMES</h3>
             </div>
-
-            <!-- Crime Distribution Pie (from DB) -->
-            <div class="glass-card chart-container-inner" style="margin-top:30px;">
-                <h3 class="inner-title"><i class="fas fa-chart-pie"></i> CRIME TYPE DISTRIBUTION</h3>
-                <div style="height:280px; padding:0 25px 25px;">
-                    <canvas id="crimeDistChart"></canvas>
+            <div style="padding:14px 22px 22px;">
+                <div style="position:relative; height:380px; width:100%;">
+                    <canvas id="districtBarChart"></canvas>
                 </div>
             </div>
         </div>
 
-        <!-- Right Side -->
-        <div class="analysis-stack">
-            <!-- Regional Hotspots -->
-            <div class="glass-card chart-container-inner">
-                <h3 class="inner-title"><i class="fas fa-map-marked-alt"></i> REGIONAL HOTSPOTS</h3>
-                <div class="hotspots-scroller">
-                    {% set max_count = emerging_hotspots[0].count if emerging_hotspots else 1 %}
-                    {% for item in emerging_hotspots %}
-                    <div class="pro-hotspot-item">
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                            <span class="hotspot-name">{{ item.district }}</span>
-                            <span class="hotspot-val">{{ item.count }} Alerts</span>
-                        </div>
-                        <div class="hotspot-bar">
-                            <div class="hotspot-fill"
-                                style="width: {{ [[(item.count * 100 / max_count), 100] | min, 0] | max }}%;">
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
+        <!-- Telangana Map -->
+        <div class="glass-card chart-container-inner" style="overflow:hidden;">
+            <div class="section-header" style="padding:22px 22px 14px;">
+                <h3><i class="fas fa-map-marked-alt"></i> TELANGANA DISTRICT HEATMAP</h3>
             </div>
-
-            <!-- Telangana District Map -->
-            <div class="glass-card chart-container-inner" style="margin-top:25px;">
-                <div
-                    style="padding:25px 25px 0; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
-                    <h3
-                        style="margin:0; font-size:1rem; color:#fff; font-weight:700; display:flex; align-items:center; gap:10px;">
-                        <i class="fas fa-globe-asia"></i> TELANGANA DISTRICT HEATMAP
-                    </h3>
-                    <div id="mapLegend" style="display:flex; gap:8px; font-size:0.72rem; color:var(--text-muted);">
-                    </div>
-                </div>
-                <div id="districtMap" style="height:350px; border-radius:0 0 20px 20px; margin-top:15px;"></div>
-            </div>
-
-            <!-- Monthly Trend Chart -->
-            <div class="glass-card chart-container-inner" style="margin-top:25px;">
-                <h3 class="inner-title"><i class="fas fa-calendar-alt"></i> MONTHLY TREND</h3>
-                <div style="height:220px; padding:0 25px 25px;">
-                    <canvas id="monthlyTrendChart"></canvas>
-                </div>
-            </div>
-
-            <!-- Live Intelligence Feed -->
-            <div class="glass-card live-feed-pro" style="margin-top: 25px;">
-                <div class="live-header">
-                    <h3><i class="fas fa-satellite pulse"></i> LIVE TRANSMISSIONS</h3>
-                </div>
-                <div id="liveFeedContainer" class="live-body">
-                    <div class="live-placeholder">Establishing Command Link...</div>
-                </div>
+            <div id="districtMap" style="height:380px;"></div>
+            <div style="display:flex; flex-wrap:wrap; gap:10px; padding:10px 22px 16px; font-size:.72rem; color:var(--text-muted);">
+                <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#ef4444;margin-right:4px;"></span>Critical</span>
+                <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#f59e0b;margin-right:4px;"></span>Moderate</span>
+                <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#3b82f6;margin-right:4px;"></span>Low</span>
+                <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#10b981;margin-right:4px;"></span>Safe</span>
             </div>
         </div>
     </div>
@@ -708,6 +615,7 @@
     const weaponData = {{ weapon_data | tojson }};
     const monthlyTrendData = {{ monthly_trend | tojson }};
     const crimeDistData = {{ crime_distribution | tojson }};
+    const districtCrimeData = {{ district_crime_data | tojson }};
 
     tippy('[data-tippy-content]');
 
@@ -1121,115 +1029,129 @@
         });
     }
 
+
     // ──────────────────────────────────────────────
-    //   TELANGANA DISTRICT MAP (Leaflet + GeoJSON)
+    //   DISTRICT BAR CHART (horizontal)
     // ──────────────────────────────────────────────
+    let districtBarChart;
+    function buildDistrictBarChart() {
+        const ctx = document.getElementById('districtBarChart');
+        if (!ctx || !Object.keys(districtCrimeData).length) return;
 
-    // Crime counts per district from Telangana IPC data (passed from backend)
-    const districtCrimeData = {{ district_crime_data | tojson }};
+        const sortedDistricts = Object.entries(districtCrimeData)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 15);
 
-    function buildDistrictMap() {
-        const mapEl = document.getElementById('districtMap');
-        if (!mapEl || typeof L === 'undefined') return;
-
-        const map = L.map('districtMap', {
-            zoomControl: true,
-            attributionControl: false,
-            scrollWheelZoom: false,
-        });
-
-        // Dark tile layer
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-            maxZoom: 10
-        }).addTo(map);
-
-        // Load GeoJSON via fetch
-        fetch('/api/telangana-geojson')
-            .then(r => r.json())
-            .then(geojson => {
-                const counts = districtCrimeData;
-                const maxCount = Math.max(...Object.values(counts), 1);
-
-                function getColor(district) {
-                    const d = district.toUpperCase();
-                    const count = counts[d] || 0;
-                    const t = count / maxCount;
-                    if (t > 0.75) return '#ef4444';
-                    if (t > 0.5) return '#f59e0b';
-                    if (t > 0.25) return '#3b82f6';
-                    return '#10b981';
-                }
-
-                const layer = L.geoJSON(geojson, {
-                    style: feature => ({
-                        fillColor: getColor(feature.properties.D_N || ''),
-                        weight: 1.5,
-                        opacity: 1,
-                        color: 'rgba(255,255,255,0.15)',
-                        fillOpacity: 0.7,
+        districtBarChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: sortedDistricts.map(d => d[0]),
+                datasets: [{
+                    label: 'Total Crimes',
+                    data: sortedDistricts.map(d => d[1]),
+                    backgroundColor: sortedDistricts.map((d, i, arr) => {
+                        const t = d[1] / arr[0][1];
+                        if (t > 0.75) return 'rgba(239,68,68,0.75)';
+                        if (t > 0.5)  return 'rgba(245,158,11,0.75)';
+                        if (t > 0.25) return 'rgba(59,130,246,0.75)';
+                        return 'rgba(16,185,129,0.75)';
                     }),
-                    onEachFeature: (feature, layer) => {
-                        const name = feature.properties.D_N || 'Unknown';
-                        const count = counts[name.toUpperCase()] || 0;
-                        layer.bindPopup(
-                            `<div style="font-family:'Space Grotesk',sans-serif; padding:4px 8px;">
-                                <div style="font-size:0.9rem; font-weight:800; color:#fff; margin-bottom:4px;">${name}</div>
-                                <div style="font-size:0.8rem; color:#94a3b8;">Recorded crimes: <strong style="color:#3b82f6">${count.toLocaleString()}</strong></div>
-                            </div>`
-                        );
-                        layer.on('mouseover', function () {
-                            this.setStyle({ fillOpacity: 1, weight: 2.5, color: '#fff' });
-                        });
-                        layer.on('mouseout', function () {
-                            layerObj.resetStyle(this);
-                        });
-                    }
-                }).addTo(map);
-                const layerObj = layer;
-                map.fitBounds(layer.getBounds(), { padding: [10, 10] });
-            })
-            .catch(() => {
-                mapEl.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:60px; font-size:0.85rem;">District map unavailable — add /api/telangana-geojson endpoint</div>';
-            });
-
-        // Map legend
-        const legendEl = document.getElementById('mapLegend');
-        if (legendEl) {
-            legendEl.innerHTML = `
-                <span style="background:#10b981; width:12px; height:12px; display:inline-block; border-radius:3px;"></span> Low
-                <span style="background:#3b82f6; width:12px; height:12px; display:inline-block; border-radius:3px; margin-left:8px;"></span> Medium
-                <span style="background:#f59e0b; width:12px; height:12px; display:inline-block; border-radius:3px; margin-left:8px;"></span> High
-                <span style="background:#ef4444; width:12px; height:12px; display:inline-block; border-radius:3px; margin-left:8px;"></span> Critical
-            `;
-        }
+                    borderRadius: 5,
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                indexAxis: 'y',
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { grid: { color: 'rgba(255,255,255,0.04)' }, beginAtZero: true, ticks: { color: '#94a3b8', font: { size: 10 } } },
+                    y: { grid: { display: false }, ticks: { color: '#e2e8f0', font: { size: 10 } } }
+                }
+            }
+        });
     }
 
     // ──────────────────────────────────────────────
-    //   LIVE FEED
+    //   ANALYTICS PAGE MAP
     // ──────────────────────────────────────────────
-    const feed = document.getElementById('liveFeedContainer');
-    async function fetchLive() {
-        try {
-            const r = await fetch('/api/live-crimes');
-            if (!r.ok) throw new Error(`HTTP ${r.status}`);
-            const d = await r.json();
-            if (feed.innerText.includes('Establishing')) feed.innerHTML = '';
-            const c = document.createElement('div');
-            c.className = 'alert-premium';
-            c.innerHTML = `
-                <div style="font-size:0.7rem;color:var(--accent-red);font-weight:800;display:flex;justify-content:space-between;">
-                    <span>${d.timestamp}</span>
-                    <span style="color:${d.severity === 'Critical' ? 'var(--accent-red)' : d.severity === 'High' ? '#f59e0b' : 'var(--accent-blue)'};">${d.severity}</span>
-                </div>
-                <div style="font-weight:700;color:#fff;font-size:0.9rem;margin-top:4px;">${d.title}</div>
-                <div style="font-size:0.75rem;color:var(--text-muted);margin-top:3px;">${d.district}</div>`;
-            feed.prepend(c);
-            if (feed.children.length > 5) feed.removeChild(feed.lastChild);
-        } catch (e) {
-            if (feed.innerText.includes('Establishing')) {
-                feed.innerHTML = '<div class="live-placeholder" style="color:var(--accent-red);">Feed unavailable</div>';
-            }
+    function buildDistrictMap() {
+        const mapEl = document.getElementById('districtMap');
+        if (!mapEl || !Object.keys(districtCrimeData).length) return;
+
+        const map = L.map('districtMap', { zoomControl: true, scrollWheelZoom: true })
+                      .setView([17.85, 79.12], 7);
+
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; OSM &copy; CARTO',
+            subdomains: 'abcd', maxZoom: 19
+        }).addTo(map);
+
+        const maxCount = Math.max(...Object.values(districtCrimeData));
+
+        function getColor(count) {
+            const t = count / maxCount;
+            if (t > 0.75) return '#ef4444';
+            if (t > 0.5)  return '#f59e0b';
+            if (t > 0.25) return '#3b82f6';
+            return '#10b981';
         }
+
+        fetch('/api/telangana-geojson')
+            .then(r => r.json())
+            .then(geo => {
+                const geojsonLayer = L.geoJson(geo, {
+                    style: feat => {
+                        const name = (feat.properties.D_N || '').toUpperCase();
+                        const count = districtCrimeData[name] || 0;
+                        return {
+                            fillColor: getColor(count),
+                            fillOpacity: 0.72,
+                            color: 'rgba(255,255,255,0.25)',
+                            weight: 1.2
+                        };
+                    },
+                    onEachFeature: (feat, layer) => {
+                        const rawName = feat.properties.D_N || 'UNKNOWN';
+                        const name = rawName.toUpperCase();
+                        const count = districtCrimeData[name] || 0;
+                        layer.bindTooltip(
+                            `<strong style="font-size:.9rem;">${rawName}</strong><br>
+                             <span style="color:#94a3b8;">Total Crimes:</span>
+                             <strong style="color:${getColor(count)};">${count.toLocaleString()}</strong>`,
+                            { sticky: true, opacity: 1, className: 'leaflet-tooltip-dark-analytics' }
+                        );
+                        layer.on({
+                            mouseover(e) { e.target.setStyle({ fillOpacity: 0.95, weight: 2, color: '#fff' }); },
+                            mouseout(e)  { geojsonLayer.resetStyle(e.target); }
+                        });
+                    }
+                }).addTo(map);
+
+                // Permanent district name labels
+                geo.features.forEach(feat => {
+                    try {
+                        const latlng = L.geoJson(feat).getBounds().getCenter();
+                        const rawName = feat.properties.D_N || '';
+                        L.marker(latlng, {
+                            icon: L.divIcon({
+                                className: '',
+                                html: `<span style="
+                                    font-size:8px; font-weight:800;
+                                    color:#000; text-shadow:0 0 4px #fff,0 0 4px #fff;
+                                    white-space:nowrap; pointer-events:none;
+                                ">${rawName}</span>`,
+                                iconSize: [80, 14],
+                                iconAnchor: [40, 7]
+                            }),
+                            interactive: false
+                        }).addTo(map);
+                    } catch(e) {}
+                });
+
+                map.fitBounds(geojsonLayer.getBounds(), { padding: [10, 10] });
+            })
+            .catch(err => console.error('Analytics map error:', err));
     }
 
     // ──────────────────────────────────────────────
@@ -1237,20 +1159,21 @@
     // ──────────────────────────────────────────────
     document.addEventListener('DOMContentLoaded', () => {
         startCounters();
-
-        buildHourlyChart();
-        buildGenderChart();
-        buildWeaponChart();
-        buildCrimeDistChart();
-        buildMonthlyChart();
+        buildDistrictBarChart();
         buildDistrictMap();
-
-        // Load ML data (anly1 engine)
         loadMLData();
-
-        // Live feed
-        fetchLive();
-        setInterval(fetchLive, 10000);
     });
 </script>
-{% endblock %}
+<style>
+    .leaflet-tooltip-dark-analytics {
+        background: #0f172a !important;
+        color: #f8fafc !important;
+        border: 1px solid rgba(99,179,237,.35) !important;
+        border-radius: 8px !important;
+        font-size: .82rem !important;
+        padding: 6px 10px !important;
+        box-shadow: 0 4px 20px rgba(0,0,0,.5) !important;
+    }
+    .leaflet-tooltip-dark-analytics::before { display: none !important; }
+</style>
+{% endblock %}

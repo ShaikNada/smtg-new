@@ -9,7 +9,6 @@
     </div>
 </div>
 
-<!-- Option Selection -->
 <div id="selectionMode"
     style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; max-width: 900px; margin: 0 auto 50px;">
     <div class="stat-card" onclick="setMode('manual')"
@@ -29,7 +28,9 @@
         onmouseout="this.style.borderColor='var(--border-color)'; this.style.transform='translateY(0)'">
         <i class="fas fa-file-upload fa-3x" style="color: var(--accent-green); margin-bottom: 20px;"></i>
         <h3 style="font-weight: 700;">Document Image Upload</h3>
-        <p style="font-size: 0.85rem; color: var(--text-muted);">Upload a scan or photo of the physical FIR document.
+        <p style="font-size: 0.85rem; color: var(--text-muted);">
+            Upload a scan or photo of the physical FIR document. OCR will try to extract FIR number, date, district,
+            police station, complainant, place, vehicle/property details and description.
         </p>
         <button class="btn-primary-custom"
             style="margin-top: 15px; background: var(--accent-green); pointer-events: none;">Select</button>
@@ -37,7 +38,6 @@
 </div>
 
 <form id="firForm" action="/firs/new" method="post" enctype="multipart/form-data" style="display: none;">
-    <!-- Hidden input to track entry mode -->
     <input type="hidden" id="entryMethod" name="entry_method" value="manual">
 
     <div style="max-width: 900px; margin: 0 auto;">
@@ -109,21 +109,22 @@
             </div>
 
             <div id="uploadFields" style="display: none;">
-                <!-- For upload mode, some minimal fields might still be needed or we can auto-fill them from OCR in real scenario. 
-                     For now, we'll ask for FIR No and Date then the file. -->
                 <div style="margin-bottom: 20px;">
                     <label
-                        style="color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; margin-bottom: 8px; display: block;">FIR
-                        Number (Reference)</label>
-                    <input type="text" id="upload_fir_no" name="fir_number_upload" placeholder="e.g., FIR-2026-042"
+                        style="color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; margin-bottom: 8px; display: block;">
+                        FIR Number (Optional override)
+                    </label>
+                    <input type="text" id="upload_fir_no" name="fir_number_upload"
+                        placeholder="Leave blank to let OCR detect FIR number"
                         style="width: 100%; background: var(--card-bg); border: 1px solid var(--border-color); color: var(--text-main); border-radius: 8px; padding: 12px;">
                 </div>
 
                 <div class="dropzone" onclick="document.getElementById('fir_image').click()" id="dropzoneContent">
                     <i class="fas fa-cloud-upload-alt fa-3x"
                         style="color: var(--accent-blue); margin-bottom: 15px;"></i>
-                    <div style="font-weight: 600; font-size: 1.1rem; margin-bottom: 5px;">Upload Document Image</div>
-                    <div style="font-size: 0.8rem; color: var(--text-muted);">PNG, JPG (Max 5MB)</div>
+                    <div style="font-weight: 600; font-size: 1.1rem; margin-bottom: 5px;">Upload FIR Document Image
+                    </div>
+                    <div style="font-size: 0.8rem; color: var(--text-muted);">PNG, JPG, JPEG (Max 5MB)</div>
                     <input type="file" id="fir_image" name="fir_image" style="display: none;" accept="image/*"
                         onchange="previewImage(this)">
 
@@ -131,8 +132,15 @@
                         <img id="image_preview" src="" class="fir-image-preview">
                     </div>
                 </div>
-                <div style="margin-top: 20px; font-size: 0.85rem; color: var(--text-muted);">
-                    <i class="fas fa-info-circle"></i> Digital metadata will be extracted from the uploaded image.
+
+                <div style="margin-top: 20px; font-size: 0.85rem; color: var(--text-muted); line-height: 1.6;">
+                    <i class="fas fa-info-circle"></i>
+                    OCR will try to extract:
+                    FIR No, FIR Date, District, Police Station, Complainant, Address, Place of Occurrence,
+                    Property / Vehicle details, estimated value, and FIR contents.
+                    <br><br>
+                    <strong>Tip:</strong> Upload a clear straight image with good lighting and minimum shadow for better
+                    extraction.
                 </div>
             </div>
 
@@ -160,9 +168,9 @@
         const uploadFields = document.getElementById('uploadFields');
         const header = document.getElementById('formHeader');
 
-        // Toggle required attributes
         const manualInputs = manualFields.querySelectorAll('input, textarea');
         const uploadInput = document.getElementById('upload_fir_no');
+        const uploadImage = document.getElementById('fir_image');
 
         if (mode === 'manual') {
             manualFields.style.display = 'block';
@@ -171,13 +179,15 @@
 
             manualInputs.forEach(i => i.setAttribute('required', ''));
             uploadInput.removeAttribute('required');
+            uploadImage.removeAttribute('required');
         } else {
             manualFields.style.display = 'none';
             uploadFields.style.display = 'block';
             header.innerText = "Document Image Upload";
 
             manualInputs.forEach(i => i.removeAttribute('required'));
-            uploadInput.setAttribute('required', '');
+            uploadInput.removeAttribute('required');
+            uploadImage.setAttribute('required', '');
         }
     }
 

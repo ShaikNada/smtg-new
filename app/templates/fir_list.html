@@ -30,6 +30,15 @@
                 {% endfor %}
             </select>
         </div>
+        <div style="flex: 1; min-width: 150px;">
+            <label style="font-size: 0.72rem; color: var(--text-muted); margin-bottom: 6px; display: block; text-transform: uppercase; letter-spacing: 1px;">Crime Type</label>
+            <select name="crime_type" style="width: 100%; background: var(--card-bg); border: 1px solid var(--border-color); color: var(--text-main); border-radius: 8px; padding: 10px 14px;">
+                <option value="">All Crime Types</option>
+                {% for ctype in crime_types %}
+                <option value="{{ ctype }}" {% if selected_crime_type == ctype %}selected{% endif %}>{{ ctype }}</option>
+                {% endfor %}
+            </select>
+        </div>
         <div style="display: flex; gap: 10px; align-items: center;">
             <button type="submit" class="btn-primary-custom" style="padding: 10px 22px;">
                 <i class="fas fa-search"></i> Search

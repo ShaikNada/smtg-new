@@ -8,157 +8,6 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
   <link rel="stylesheet" href="/static/style.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-  <style>
-    /* Compact sidebar overrides for whole website */
-    .sidebar {
-      width: 220px !important;
-      padding: 2px 10px !important;
-      box-sizing: border-box;
-      height: calc(100vh - 20px) !important;
-      min-height: calc(100vh - 20px) !important;
-      top: 10px !important;
-      left: 10px !important;
-      border-radius: 18px !important;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-    }
-
-    .sidebar-brand {
-      padding: 6px 4px 10px 4px !important;
-      margin-bottom: 4px !important;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .brand-icon {
-      width: 38px !important;
-      height: 38px !important;
-      min-width: 38px !important;
-      min-height: 38px !important;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 12px !important;
-    }
-
-    .brand-name {
-      font-size: 0.92rem !important;
-      line-height: 1.05 !important;
-    }
-
-    .sidebar-nav {
-      display: flex;
-      flex-direction: column;
-      gap: 4px !important;
-      margin-top: 4px !important;
-    }
-
-    .sidebar-footer {
-      display: flex;
-      flex-direction: column;
-      gap: 4px !important;
-      margin-top: 8px !important;
-      padding-top: 8px !important;
-    }
-
-    .nav-item {
-      padding: 6px 10px !important;
-      min-height: 38px !important;
-      border-radius: 10px !important;
-      font-size: 0.8rem !important;
-      display: flex;
-      align-items: center;
-      gap: 8px !important;
-    }
-
-    .nav-item i {
-      width: 14px;
-      text-align: center;
-      font-size: 0.85rem !important;
-    }
-
-    .main-content {
-      margin-left: 240px !important;
-      width: calc(100% - 240px) !important;
-      box-sizing: border-box;
-    }
-
-    .top-header {
-      min-height: 68px !important;
-    }
-
-    .notification-link {
-      color: var(--text-muted);
-      text-decoration: none;
-      font-size: 1.05rem;
-      cursor: pointer;
-      transition: 0.2s ease;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .notification-link:hover {
-      color: #fff;
-      transform: translateY(-1px);
-    }
-
-    @media (max-width: 1100px) {
-      .sidebar {
-        width: 205px !important;
-      }
-
-      .main-content {
-        margin-left: 225px !important;
-        width: calc(100% - 225px) !important;
-      }
-
-      .nav-item {
-        font-size: 0.76rem !important;
-        padding: 8px 9px !important;
-      }
-
-      .nav-item span {
-        font-size: 0.76rem !important;
-      }
-    }
-
-    @media (max-width: 900px) {
-      .sidebar {
-        width: 190px !important;
-        padding: 10px 8px !important;
-      }
-
-      .main-content {
-        margin-left: 208px !important;
-        width: calc(100% - 208px) !important;
-      }
-
-      .brand-name {
-        font-size: 0.85rem !important;
-      }
-
-      .nav-item {
-        font-size: 0.72rem !important;
-        padding: 7px 8px !important;
-        min-height: 34px !important;
-        gap: 6px !important;
-      }
-
-      .nav-item span {
-        font-size: 0.72rem !important;
-      }
-
-      .nav-item i {
-        font-size: 0.78rem !important;
-        width: 13px;
-      }
-    }
-  </style>
 </head>
 
 <body>
@@ -170,8 +19,8 @@
         </div>
         <div>
           <div class="brand-name">CIRIS</div>
-          <div style="font-size: 0.62rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.7px;">
-            Crime Intelligence
+          <div style="font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">
+            Intelligence System
           </div>
         </div>
       </div>
@@ -221,25 +70,24 @@
   </div>
 
   <div class="main-content">
-    <header class="top-header" style="justify-content: flex-end;">
+    <header class="top-header">
       <div class="header-right">
         <div class="badge-live">
           <div class="pulse"></div>
           <span>LIVE</span>
         </div>
 
-        <a href="/notifications" class="notification-link" title="Notifications">
+        <a href="/notifications" style="color: var(--text-muted); font-size: 1.1rem; text-decoration: none;">
           <i class="far fa-bell"></i>
         </a>
 
-        <div
-          style="display: flex; align-items: center; gap: 10px; padding-left: 10px; border-left: 1px solid var(--border-color);">
-          <div style="background: var(--accent-blue); padding: 5px 10px; border-radius: 50%;">
+        <div style="display: flex; align-items: center; gap: 12px; padding-left: 20px; border-left: 1px solid var(--border-color);">
+          <div style="background: var(--accent-blue); width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem;">
             <i class="fas fa-user-shield"></i>
           </div>
-          <div style="font-size: 0.85rem;">
-            <div style="font-weight: 700;">Admin User</div>
-            <div style="color: var(--text-muted); font-size: 0.75rem;">nada@gmail.com</div>
+          <div style="line-height: 1.2;">
+            <div style="font-size: 0.85rem; font-weight: 700;">Admin Officer</div>
+            <div style="color: var(--text-muted); font-size: 0.7rem;">Active Session</div>
           </div>
         </div>
       </div>

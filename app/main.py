@@ -1212,6 +1212,7 @@ def create_fir(
     if entry_method == "upload" and fir_image and fir_image.filename:
         try:
             import re, tempfile, pytesseract
+            pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
             from PIL import Image as PILImage
             img_bytes = fir_image.file.read()
             fir_image.file.seek(0)  # reset so save below still works

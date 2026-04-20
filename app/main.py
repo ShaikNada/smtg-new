@@ -27,6 +27,11 @@ from .classifier import classify_crime_type
 from PIL import Image as PILImage, ImageDraw, ImageFont
 import numpy as np
 
+# ── Paths to data files ──────────────────────────────────────────
+_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+STATIC_DIR = os.path.join(_BASE_DIR, "static")
+TEMPLATES_DIR = os.path.join(_BASE_DIR, "templates")
+
 app = FastAPI(title="CIRIS - FIR Management & Dashboard", debug=True)
 
 app.add_middleware(
@@ -34,477 +39,20 @@ app.add_middleware(
     secret_key=os.getenv("CIRIS_SECRET_KEY", "super-secret-change-this")
 )
 
-app.mount("/static", StaticFiles(directory="app/static"), name="static")
-templates = Jinja2Templates(directory="app/templates")
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
 ADMIN_USERNAME = os.getenv("CIRIS_ADMIN_USERNAME", "admin")
 ADMIN_PASSWORD = os.getenv("CIRIS_ADMIN_PASSWORD", "admin123")
-
-# ── Paths to data files ──────────────────────────────────────────
-_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ANLY2_CSV_PATH       = os.path.join(_BASE_DIR, "..", "anly2.csv")
 TELANGANA_CSV_PATH   = os.path.join(_BASE_DIR, "..", "telangana_ipc_2014_long.csv.csv")
 TELANGANA_GEO_PATH   = os.path.join(_BASE_DIR, "..", "telangana_districts.geojson.json")
 
+
 # =========================
-# MONITORING / YOLO + TRACKING SECTION
+# MONITORING / MULTI-CAMERA AI SECTION
 # =========================
-
-YOLO_MODEL_NAME = os.getenv("CIRIS_YOLO_MODEL", "yolo11n.pt")
-YOLO_TRACKER_NAME = os.getenv("CIRIS_TRACKER", "bytetrack.yaml")
-
-YOLO_ALLOWED_CLASSES = {
-    "person", "bicycle", "car", "motorcycle", "bus", "truck",
-    "backpack", "handbag", "suitcase", "knife", "gun", "weapon",
-}
-
-YOLO_COLOR_MAP = {
-    "person": "#3b82f6", "bicycle": "#06b6d4", "car": "#10b981",
-    "motorcycle": "#f59e0b", "bus": "#8b5cf6", "truck": "#22c55e",
-    "backpack": "#ec4899", "handbag": "#f97316", "suitcase": "#eab308",
-    "knife": "#ef4444", "gun": "#dc2626", "weapon": "#b91c1c",
-}
-
-WEAPON_CLASS_NAMES  = {"knife", "gun", "weapon"}
-VEHICLE_CLASS_NAMES = {"motorcycle", "bicycle", "car", "bus", "truck"}
-BAG_CLASS_NAMES     = {"backpack", "handbag", "suitcase"}
-
-YOLO_MODEL      = None
-YOLO_MODEL_LOCK = threading.Lock()
-
-MONITOR_THREAD      = None
-MONITOR_STOP_EVENT  = threading.Event()
-MONITOR_STATE_LOCK  = threading.Lock()
-NOTIFICATION_LOCK   = threading.Lock()
-NOTIFICATIONS       = deque(maxlen=500)
-LAST_NOTIFICATION_META = {"signature": None, "at": None}
-NOTIFICATION_COOLDOWN_SECONDS = 30
-CRIME_CONFIRM_FRAMES = {
-    "FIGHTING DETECTED": 3,
-    "WEAPON DETECTED": 2,
-    "CHAIN SNATCHING SUSPECTED": 4,
-    "CROWDING": 5,
-    "DEFAULT": 4,
-}
-
-MONITOR_STATE = {
-    "status": "idle", "running": False, "video_url": None,
-    "camera_id": "cam1", "location": "Main Gate", "action": "IDLE",
-    "confidence": 0.0, "severity": 0.0, "severity_label": "LOW",
-    "summary": "Upload a video to begin YOLO tracking.", "alert": False,
-    "counts": {}, "tracked_people": 0, "tracked_ids": [], "events": [],
-    "boxes": [],
-    "telemetry": {
-        "source_fps": 0.0, "processing_fps": 0.0, "latency_ms": 0.0,
-        "frame_index": 0, "total_frames": 0,
-        "model": YOLO_MODEL_NAME, "tracker": YOLO_TRACKER_NAME,
-    },
-    "progress": 0.0, "error": None,
-}
-
-
-def get_yolo_model():
-    global YOLO_MODEL
-    with YOLO_MODEL_LOCK:
-        if YOLO_MODEL is None:
-            YOLO_MODEL = YOLO(YOLO_MODEL_NAME)
-    return YOLO_MODEL
-
-
-def reset_monitor_state(video_url=None, camera_id="cam1", location="Main Gate"):
-    with MONITOR_STATE_LOCK:
-        MONITOR_STATE.clear()
-        MONITOR_STATE.update({
-            "status": "idle", "running": False, "video_url": video_url,
-            "camera_id": camera_id, "location": location, "action": "IDLE",
-            "confidence": 0.0, "severity": 0.0, "severity_label": "LOW",
-            "summary": "Upload a video to begin YOLO tracking.", "alert": False,
-            "counts": {}, "tracked_people": 0, "tracked_ids": [], "events": [], "boxes": [],
-            "telemetry": {
-                "source_fps": 0.0, "processing_fps": 0.0, "latency_ms": 0.0,
-                "frame_index": 0, "total_frames": 0,
-                "model": YOLO_MODEL_NAME, "tracker": YOLO_TRACKER_NAME,
-            },
-            "progress": 0.0, "error": None,
-        })
-
-
-def update_monitor_state(**kwargs):
-    with MONITOR_STATE_LOCK:
-        for key, value in kwargs.items():
-            MONITOR_STATE[key] = value
-
-
-def get_notifications_snapshot(limit=100):
-    with NOTIFICATION_LOCK:
-        return [dict(item) for item in list(NOTIFICATIONS)[:limit]]
-
-
-def push_notification(item: dict):
-    now = datetime.now()
-    signature = item.get("signature")
-    with NOTIFICATION_LOCK:
-        if (
-            LAST_NOTIFICATION_META["signature"] == signature
-            and LAST_NOTIFICATION_META["at"] is not None
-            and (now - LAST_NOTIFICATION_META["at"]).total_seconds() < NOTIFICATION_COOLDOWN_SECONDS
-        ):
-            return
-        LAST_NOTIFICATION_META["signature"] = signature
-        LAST_NOTIFICATION_META["at"] = now
-        notification_item = dict(item)
-        notification_item["id"] = uuid.uuid4().hex[:12]
-        notification_item["time"] = now.strftime("%Y-%m-%d %H:%M:%S")
-        notification_item.pop("signature", None)
-        NOTIFICATIONS.appendleft(notification_item)
-
-
-def get_monitor_state_snapshot():
-    with MONITOR_STATE_LOCK:
-        return {
-            "status": MONITOR_STATE["status"], "running": MONITOR_STATE["running"],
-            "video_url": MONITOR_STATE["video_url"], "camera_id": MONITOR_STATE["camera_id"],
-            "location": MONITOR_STATE["location"], "action": MONITOR_STATE["action"],
-            "confidence": MONITOR_STATE["confidence"], "severity": MONITOR_STATE["severity"],
-            "severity_label": MONITOR_STATE["severity_label"], "summary": MONITOR_STATE["summary"],
-            "alert": MONITOR_STATE["alert"], "counts": dict(MONITOR_STATE["counts"]),
-            "tracked_people": MONITOR_STATE["tracked_people"],
-            "tracked_ids": list(MONITOR_STATE["tracked_ids"]),
-            "events": [dict(e) for e in MONITOR_STATE["events"]],
-            "boxes": [dict(b) for b in MONITOR_STATE["boxes"]],
-            "telemetry": dict(MONITOR_STATE["telemetry"]),
-            "progress": MONITOR_STATE["progress"], "error": MONITOR_STATE["error"],
-            "notifications": get_notifications_snapshot(limit=50),
-        }
-
-
-def distance_points(p1, p2):
-    dx = float(p1[0]) - float(p2[0])
-    dy = float(p1[1]) - float(p2[1])
-    return (dx * dx + dy * dy) ** 0.5
-
-
-def average_step_distance(points):
-    if len(points) < 2:
-        return 0.0
-    steps = [distance_points(points[i - 1], points[i]) for i in range(1, len(points))]
-    return sum(steps) / max(len(steps), 1)
-
-
-def shrink_normalized_box(x, y, w, h, scale_w=0.82, scale_h=0.88):
-    cx = x + (w / 2.0); cy = y + (h / 2.0)
-    new_w = max(0.02, min(1.0, w * scale_w))
-    new_h = max(0.03, min(1.0, h * scale_h))
-    new_x = max(0.0, min(1.0 - new_w, cx - (new_w / 2.0)))
-    new_y = max(0.0, min(1.0 - new_h, cy - (new_h / 2.0)))
-    return new_x, new_y, new_w, new_h
-
-
-def make_crime_box(box, label, color):
-    sx, sy, sw, sh = shrink_normalized_box(box["x"], box["y"], box["w"], box["h"])
-    return {
-        "x": sx, "y": sy, "w": sw, "h": sh, "label": label,
-        "confidence": box.get("confidence", 0.0), "track_id": box.get("track_id"),
-        "class_name": box.get("class_name"), "color": color, "is_crime_box": True,
-    }
-
-
-def build_detection_summary(counts, tracked_people, events):
-    total = sum(counts.values())
-    if events:
-        event_names = ", ".join(e["label"] for e in events[:2])
-        return f"Tracked {tracked_people} person(s). Event(s): {event_names}."
-    if total == 0:
-        return "No target objects detected in current frame window."
-    people = counts.get("person", 0)
-    bag_like = counts.get("backpack", 0) + counts.get("handbag", 0) + counts.get("suitcase", 0)
-    vehicle_like = sum(counts.get(k, 0) for k in ["car", "bus", "truck", "motorcycle", "bicycle"])
-    parts = []
-    if people: parts.append(f"{people} person(s)")
-    if bag_like: parts.append(f"{bag_like} bag-like object(s)")
-    if vehicle_like: parts.append(f"{vehicle_like} vehicle / mobility object(s)")
-    joined = ", ".join(parts) if parts else "objects"
-    return f"Detected {joined}."
-
-
-def label_to_severity(label):
-    upper = (label or "").upper()
-    if any(k in upper for k in ["MURDER", "KIDNAP", "KNIFE", "GUN", "WEAPON", "STABBING", "SHOOTING", "FIREARM"]):
-        return 0.95, "CRITICAL"
-    if any(k in upper for k in ["FIGHT", "CHAIN SNATCH", "ROBBERY", "ASSAULT"]):
-        return 0.70, "MODERATE"
-    if any(k in upper for k in ["CROWD", "SUSPICIOUS", "TRESPASS"]):
-        return 0.35, "LOW"
-    return 0.15, "LOW"
-
-
-def choose_primary_event(events, counts):
-    if events:
-        severity_rank = {"LOW": 1, "MODERATE": 2, "HIGH": 3, "CRITICAL": 4}
-        return sorted(events, key=lambda e: (severity_rank.get(e["severity_label"], 0), e["score"]), reverse=True)[0]
-    return {"label": "SCANNING", "score": 0.0, "severity": 0.0, "severity_label": "LOW"}
-
-
-def start_monitor_worker(video_path, video_url, camera_id, location):
-    global MONITOR_THREAD
-    MONITOR_STOP_EVENT.set()
-    if MONITOR_THREAD and MONITOR_THREAD.is_alive():
-        MONITOR_THREAD.join(timeout=1.5)
-    MONITOR_STOP_EVENT.clear()
-    reset_monitor_state(video_url=video_url, camera_id=camera_id, location=location)
-    MONITOR_THREAD = threading.Thread(
-        target=process_video_worker,
-        args=(video_path, video_url, camera_id, location),
-        daemon=True
-    )
-    MONITOR_THREAD.start()
-
-
-def process_video_worker(video_path, video_url, camera_id, location):
-    cap = cv2.VideoCapture(video_path)
-    if not cap.isOpened():
-        update_monitor_state(
-            status="error", running=False, camera_id=camera_id, location=location,
-            summary="Could not open uploaded video.", error="OpenCV failed to read the uploaded file.",
-        )
-        return
-    try:
-        model = get_yolo_model()
-    except Exception as e:
-        cap.release()
-        update_monitor_state(
-            status="error", running=False, camera_id=camera_id, location=location,
-            summary="Failed to load YOLO model.", error=str(e),
-        )
-        return
-
-    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
-    source_fps   = float(cap.get(cv2.CAP_PROP_FPS) or 25.0)
-    frame_stride = 4
-    frame_index  = 0
-    processed_frames = 0
-    wall_start = time_module.perf_counter()
-    track_histories = {}
-    stale_track_cutoff = frame_stride * 10
-    detection_buffer = {}
-    cooldown_tracker = {}
-
-    update_monitor_state(
-        status="analyzing", running=True, camera_id=camera_id, location=location,
-        summary="Video uploaded. Running YOLO tracking...",
-        telemetry={
-            "source_fps": round(source_fps, 2), "processing_fps": 0.0, "latency_ms": 0.0,
-            "frame_index": 0, "total_frames": total_frames,
-            "model": YOLO_MODEL_NAME, "tracker": YOLO_TRACKER_NAME,
-        },
-        progress=0.0, error=None,
-    )
-
-    while cap.isOpened() and not MONITOR_STOP_EVENT.is_set():
-        ok, frame = cap.read()
-        if not ok:
-            break
-        frame_index += 1
-        if frame_index % frame_stride != 0:
-            continue
-
-        frame_h, frame_w = frame.shape[:2]
-        t0 = time_module.perf_counter()
-        results = model.track(
-            source=frame, conf=0.25, iou=0.6, imgsz=640,
-            persist=True, tracker=YOLO_TRACKER_NAME, verbose=False,
-        )
-        infer_ms = (time_module.perf_counter() - t0) * 1000.0
-        processed_frames += 1
-
-        result = results[0]
-        counts = {}; all_boxes = []; person_boxes = {}; person_centers = {}
-        weapon_boxes = []; bag_boxes = []; vehicle_boxes = []
-        max_conf = 0.0; active_person_ids = set()
-
-        if result.boxes is not None:
-            names = result.names
-            for box in result.boxes:
-                cls_raw  = box.cls.tolist()
-                conf_raw = box.conf.tolist()
-                xyxy     = box.xyxy.tolist()[0]
-                track_id = None
-                cls_id   = int(cls_raw[0] if isinstance(cls_raw, list) else cls_raw)
-                conf     = float(conf_raw[0] if isinstance(conf_raw, list) else conf_raw)
-                if box.id is not None:
-                    id_raw   = box.id.tolist()
-                    track_id = int(id_raw[0] if isinstance(id_raw, list) else id_raw)
-                class_name = (names.get(cls_id, str(cls_id)) if isinstance(names, dict) else names[cls_id])
-                if class_name not in YOLO_ALLOWED_CLASSES:
-                    continue
-                x1, y1, x2, y2 = xyxy
-                nx = max(0.0, min(1.0, x1 / frame_w)); ny = max(0.0, min(1.0, y1 / frame_h))
-                nw = max(0.0, min(1.0, (x2 - x1) / frame_w)); nh = max(0.0, min(1.0, (y2 - y1) / frame_h))
-                cx = nx + (nw / 2.0); cy = ny + (nh / 2.0)
-                counts[class_name] = counts.get(class_name, 0) + 1
-                max_conf = max(max_conf, conf)
-                display_label = class_name.upper()
-                if class_name == "person" and track_id is not None:
-                    display_label = f"PERSON #{track_id}"
-                box_payload = {
-                    "x": nx, "y": ny, "w": nw, "h": nh, "label": display_label,
-                    "confidence": conf, "track_id": track_id, "class_name": class_name,
-                    "color": YOLO_COLOR_MAP.get(class_name, "#3b82f6"), "center": (cx, cy), "is_crime_box": False,
-                }
-                all_boxes.append(box_payload)
-                if class_name == "person" and track_id is not None:
-                    active_person_ids.add(track_id)
-                    person_boxes[track_id] = box_payload; person_centers[track_id] = (cx, cy)
-                    history = track_histories.setdefault(track_id, {"centers": deque(maxlen=30), "seen_count": 0, "last_seen_frame": frame_index})
-                    history["centers"].append((cx, cy)); history["seen_count"] += 1; history["last_seen_frame"] = frame_index
-                elif class_name in WEAPON_CLASS_NAMES:
-                    weapon_boxes.append(box_payload)
-                elif class_name in BAG_CLASS_NAMES:
-                    bag_boxes.append(box_payload)
-                elif class_name in {"motorcycle", "bicycle"}:
-                    vehicle_boxes.append(box_payload)
-
-        stale_ids = [tid for tid, hist in track_histories.items() if frame_index - hist["last_seen_frame"] > stale_track_cutoff]
-        for tid in stale_ids:
-            track_histories.pop(tid, None)
-
-        events = []; crime_boxes = []; crime_track_ids = set()
-
-        def add_person_box(tid, label, color):
-            if tid in person_boxes and tid not in crime_track_ids:
-                crime_boxes.append(make_crime_box(person_boxes[tid], label, color))
-                crime_track_ids.add(tid)
-
-        def add_weapon_box(box_payload, label, color):
-            crime_boxes.append({
-                "x": box_payload["x"], "y": box_payload["y"], "w": box_payload["w"], "h": box_payload["h"],
-                "label": label, "confidence": box_payload.get("confidence", 0.0),
-                "track_id": box_payload.get("track_id"), "class_name": box_payload.get("class_name"),
-                "color": color, "is_crime_box": True,
-            })
-
-        people = counts.get("person", 0)
-        if people >= 5:
-            score, severity_label = label_to_severity("CROWDING")
-            events.append({"label": "CROWDING", "score": score, "severity": 0.35, "severity_label": severity_label})
-
-        rapid_track_ids = set()
-        for tid in active_person_ids:
-            hist = track_histories.get(tid)
-            if not hist: continue
-            points = list(hist["centers"])
-            if len(points) < 2: continue
-            avg_step = average_step_distance(points)
-            if hist["seen_count"] >= 5 and avg_step > 0.015:
-                rapid_track_ids.add(tid)
-
-        fighting_track_ids = set()
-        active_ids = sorted(active_person_ids)
-        for i in range(len(active_ids)):
-            tid1 = active_ids[i]; hist1 = track_histories.get(tid1)
-            if not hist1 or not hist1["centers"]: continue
-            for j in range(i + 1, len(active_ids)):
-                tid2 = active_ids[j]; hist2 = track_histories.get(tid2)
-                if not hist2 or not hist2["centers"]: continue
-                is_close   = distance_points(hist1["centers"][-1], hist2["centers"][-1]) < 0.25
-                rapid_motion = tid1 in rapid_track_ids or tid2 in rapid_track_ids
-                if is_close and rapid_motion:
-                    fighting_track_ids.update({tid1, tid2})
-
-        if len(fighting_track_ids) >= 2:
-            score, severity_label = label_to_severity("FIGHTING DETECTED")
-            events.append({"label": "FIGHTING DETECTED", "score": score, "severity": 0.70, "severity_label": severity_label})
-            for tid in sorted(fighting_track_ids):
-                add_person_box(tid, f"FIGHT #{tid}", "#ef4444")
-
-        if weapon_boxes:
-            primary_weapon = weapon_boxes[0]["class_name"].upper()
-            score, severity_label = label_to_severity(f"{primary_weapon} DETECTED")
-            events.append({"label": f"WEAPON DETECTED ({primary_weapon})", "score": score, "severity": 0.95, "severity_label": severity_label})
-            for weapon_box in weapon_boxes:
-                add_weapon_box(weapon_box, weapon_box["class_name"].upper(), weapon_box.get("color", "#dc2626"))
-                for tid, center in person_centers.items():
-                    if distance_points(center, weapon_box["center"]) < 0.20:
-                        add_person_box(tid, f"ARMED #{tid}", "#dc2626")
-
-        chain_suspect_ids = set(); chain_victim_ids = set()
-        if vehicle_boxes and active_person_ids:
-            for vehicle_box in vehicle_boxes:
-                rider_ids = [tid for tid, center in person_centers.items() if distance_points(center, vehicle_box["center"]) < 0.22]
-                if not rider_ids: continue
-                bag_nearby = any(distance_points(vehicle_box["center"], bag_box["center"]) < 0.18 for bag_box in bag_boxes)
-                for rider_id in rider_ids:
-                    if rider_id not in rapid_track_ids: continue
-                    nearby_victims = [tid for tid, center in person_centers.items() if tid != rider_id and distance_points(center, person_centers[rider_id]) < 0.20]
-                    if nearby_victims and bag_nearby:
-                        chain_suspect_ids.add(rider_id); chain_victim_ids.update(nearby_victims)
-
-        if chain_suspect_ids and chain_victim_ids:
-            score, severity_label = label_to_severity("CHAIN SNATCHING")
-            events.append({"label": "CHAIN SNATCHING SUSPECTED", "score": score, "severity": 0.72, "severity_label": severity_label})
-            for tid in sorted(chain_suspect_ids): add_person_box(tid, f"SNATCH #{tid}", "#f59e0b")
-            for tid in sorted(chain_victim_ids):  add_person_box(tid, f"VICTIM #{tid}", "#fb7185")
-
-        primary      = choose_primary_event(events, counts)
-        action       = primary["label"]; severity = primary["severity"]
-        severity_label = primary["severity_label"]; alert = action != "SCANNING"
-        summary      = build_detection_summary(counts, len(active_person_ids), events)
-
-        if action not in ("SCANNING", "IDLE"):
-            label_key = action.split("(")[0].strip().upper()
-            detection_buffer[label_key] = detection_buffer.get(label_key, 0) + 1
-            needed   = CRIME_CONFIRM_FRAMES.get(label_key, CRIME_CONFIRM_FRAMES["DEFAULT"])
-            now_ts   = time_module.perf_counter()
-            last_fire = cooldown_tracker.get(label_key, 0)
-            if detection_buffer[label_key] >= needed and (now_ts - last_fire) > NOTIFICATION_COOLDOWN_SECONDS:
-                cooldown_tracker[label_key]    = now_ts
-                detection_buffer[label_key]    = 0
-                push_notification({
-                    "signature": f"{camera_id}|{location}|{action}|{severity_label}",
-                    "camera": camera_id.upper(), "location": location, "crime": action,
-                    "severity": severity_label,
-                    "confidence": round(max_conf if max_conf > 0 else primary["score"], 2),
-                    "summary": summary, "frame_index": frame_index,
-                    "video_time_sec": round(frame_index / source_fps, 1) if source_fps > 0 else None,
-                })
-        else:
-            for k in list(detection_buffer.keys()):
-                detection_buffer[k] = max(0, detection_buffer[k] - 1)
-
-        elapsed = max(time_module.perf_counter() - wall_start, 1e-6)
-        processing_fps = processed_frames / elapsed
-        progress = round((frame_index / total_frames), 4) if total_frames > 0 else 0.0
-
-        update_monitor_state(
-            status="analyzing", running=True, camera_id=camera_id, location=location,
-            action=action, confidence=max_conf if max_conf > 0 else primary["score"],
-            severity=severity, severity_label=severity_label, summary=summary, alert=alert,
-            counts=counts, tracked_people=len(active_person_ids),
-            tracked_ids=sorted(list(active_person_ids)), events=events, boxes=crime_boxes,
-            progress=progress,
-            telemetry={
-                "source_fps": round(source_fps, 2), "processing_fps": round(processing_fps, 2),
-                "latency_ms": round(infer_ms, 1), "frame_index": frame_index,
-                "total_frames": total_frames, "model": YOLO_MODEL_NAME, "tracker": YOLO_TRACKER_NAME,
-            },
-            error=None,
-        )
-
-        desired_interval = frame_stride / source_fps if source_fps > 0 else 0.2
-        spent = time_module.perf_counter() - t0
-        if desired_interval > spent:
-            time_module.sleep(desired_interval - spent)
-
-    cap.release()
-    if MONITOR_STOP_EVENT.is_set():
-        update_monitor_state(status="stopped", running=False, alert=False, action="STOPPED", boxes=[], events=[], summary="Monitoring stopped by user.")
-    else:
-        snapshot = get_monitor_state_snapshot()
-        update_monitor_state(
-            status="completed", running=False, alert=False, action="COMPLETED", boxes=[], events=[],
-            summary=f"Finished processing uploaded video. Last result: {snapshot['summary']}",
-            progress=1.0 if total_frames > 0 else snapshot["progress"],
-        )
+from .monitoring_ai import monitoring_manager
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -664,8 +212,9 @@ def seed_data():
 def startup():
     Base.metadata.create_all(bind=engine)
     seed_data()
-    # Ensure uploads directory exists
     os.makedirs(os.path.join("app", "static", "uploads"), exist_ok=True)
+    os.makedirs(os.path.join("app", "static", "monitoring"), exist_ok=True)
+    monitoring_manager.start()
 
 def generate_fir_card(fir_data: dict) -> str:
     """Generates a visual FIR card image from manual entry data."""
@@ -949,15 +498,15 @@ def analytics(request: Request, db: Session = Depends(get_db)):
     )
 
 
+
 @app.get("/monitoring", response_class=HTMLResponse)
 def monitoring(request: Request):
     redirect = redirect_if_not_logged_in(request)
     if redirect:
         return redirect
-    return templates.TemplateResponse(
-        request=request, name="monitoring.html",
-        context={"request": request, "user": request.session.get("user"), "model_name": f"{YOLO_MODEL_NAME} + {YOLO_TRACKER_NAME}"},
-    )
+    context = {"request": request, "user": request.session.get("user")}
+    context.update(monitoring_manager.get_frontend_context())
+    return templates.TemplateResponse(request=request, name="monitoring.html", context=context)
 
 
 @app.get("/notifications", response_class=HTMLResponse)
@@ -976,46 +525,40 @@ def notifications_page(request: Request):
 # ═══════════════════════════════════════════════════════════════
 
 @app.post("/api/upload-video")
-async def upload_video(
-    request: Request,
-    video: UploadFile = File(...),
-    camera_id: str = Form("cam1"),
-    location: str = Form("Main Gate"),
-):
+async def upload_video(request: Request):
     if not is_authenticated(request):
         return JSONResponse(status_code=401, content={"detail": "Unauthorized"})
-    ext      = os.path.splitext(video.filename)[1] or ".mp4"
-    filename = f"test_video_{uuid.uuid4().hex[:8]}{ext}"
-    save_path = os.path.join("app", "static", "uploads", filename)
-    os.makedirs(os.path.dirname(save_path), exist_ok=True)
-    with open(save_path, "wb") as buffer:
-        buffer.write(await video.read())
-    video_url = f"/static/uploads/{filename}"
-    start_monitor_worker(os.path.abspath(save_path), video_url, camera_id=camera_id, location=location)
-    return {"ok": True, "file_name": video.filename, "video_url": video_url}
+    return JSONResponse(status_code=410, content={
+        "detail": "Static monitoring mode is enabled. Place cam1.mp4 to cam4.mp4 inside app/static/monitoring/."
+    })
 
 
 @app.post("/api/monitoring/stop")
 def api_monitoring_stop(request: Request):
     if not is_authenticated(request):
         return JSONResponse(status_code=401, content={"detail": "Unauthorized"})
-    MONITOR_STOP_EVENT.set()
-    update_monitor_state(status="stopped", running=False, alert=False, action="STOPPED", boxes=[], events=[], summary="Monitoring stopped by user.")
-    return {"ok": True}
+    return JSONResponse(status_code=410, content={"detail": "Static monitoring mode runs automatically and does not use manual stop."})
 
 
 @app.get("/api/event-log")
 def api_event_log(request: Request):
     if not is_authenticated(request):
         return JSONResponse(status_code=401, content={"detail": "Unauthorized"})
-    return {"items": []}
+    return {"items": monitoring_manager.get_notifications_snapshot(limit=50)}
 
 
 @app.get("/api/notifications")
 def api_notifications(request: Request):
     if not is_authenticated(request):
         return JSONResponse(status_code=401, content={"detail": "Unauthorized"})
-    return {"items": get_notifications_snapshot(limit=100)}
+    return {"items": monitoring_manager.get_notifications_snapshot(limit=100)}
+
+
+@app.get("/api/monitoring/config")
+def api_monitoring_config(request: Request):
+    if not is_authenticated(request):
+        return JSONResponse(status_code=401, content={"detail": "Unauthorized"})
+    return monitoring_manager.get_frontend_context()
 
 
 # ─────────────────────────────────────────────────────────────
@@ -1496,6 +1039,7 @@ async def ocr_preview(request: Request, fir_image: UploadFile = File(...)):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 
+
 # ═══════════════════════════════════════════════════════════════
 #   WEBSOCKET + MONITORING STATS
 # ═══════════════════════════════════════════════════════════════
@@ -1505,7 +1049,7 @@ async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     try:
         while True:
-            await websocket.send_json(get_monitor_state_snapshot())
+            await websocket.send_json(monitoring_manager.get_websocket_snapshot())
             await asyncio.sleep(0.35)
     except WebSocketDisconnect:
         pass
@@ -1515,7 +1059,7 @@ async def websocket_endpoint(websocket: WebSocket):
 def api_monitoring_stats(request: Request):
     if not is_authenticated(request):
         return JSONResponse(status_code=401, content={"detail": "Unauthorized"})
-    return get_monitor_state_snapshot()["telemetry"]
+    return monitoring_manager.get_monitoring_stats()
 
 if __name__ == "__main__":
     import uvicorn

@@ -24,6 +24,9 @@ from .database import Base, engine, get_db, SessionLocal
 from .models import FIR
 from .classifier import classify_crime_type
 
+from PIL import Image as PILImage, ImageDraw, ImageFont
+import numpy as np
+
 app = FastAPI(title="CIRIS - FIR Management & Dashboard", debug=True)
 
 app.add_middleware(
@@ -661,6 +664,75 @@ def seed_data():
 def startup():
     Base.metadata.create_all(bind=engine)
     seed_data()
+    # Ensure uploads directory exists
+    os.makedirs(os.path.join("app", "static", "uploads"), exist_ok=True)
+
+def generate_fir_card(fir_data: dict) -> str:
+    """Generates a visual FIR card image from manual entry data."""
+    width, height = 800, 1100
+    img = PILImage.new('RGB', (width, height), color=(255, 255, 255))
+    draw = ImageDraw.Draw(img)
+    
+    # Try to load a font, fallback to default
+    try:
+        header_font = ImageFont.truetype("arial.exe", 32)
+        label_font = ImageFont.truetype("arial.exe", 16)
+        val_font = ImageFont.truetype("arial.exe", 20)
+    except:
+        header_font = ImageFont.load_default()
+        label_font = ImageFont.load_default()
+        val_font = ImageFont.load_default()
+
+    # Draw border
+    draw.rectangle([20, 20, width-20, height-20], outline=(0, 0, 0), width=2)
+    
+    # Header
+    draw.text((width//2, 60), "FIRST INFORMATION REPORT", fill=(0, 0, 0), font=header_font, anchor="mm")
+    draw.text((width//2, 100), "(Under Section 154 Cr.P.C.)", fill=(0, 0, 0), font=label_font, anchor="mm")
+    draw.line([50, 130, width-50, 130], fill=(0, 0, 0), width=1)
+
+    y = 160
+    fields = [
+        ("FIR Number", fir_data.get("fir_number", "N/A")),
+        ("District", fir_data.get("district", "N/A")),
+        ("Police Station", fir_data.get("station_name", "N/A")),
+        ("Date of Incident", str(fir_data.get("incident_date", "N/A"))),
+        ("Time of Incident", str(fir_data.get("incident_time", "N/A"))),
+        ("Complainant", fir_data.get("complainant_name", "N/A")),
+        ("Location", fir_data.get("location_text", "N/A")),
+        ("Legal Sections", fir_data.get("legal_section", "N/A")),
+        ("Crime Type", fir_data.get("crime_type", "N/A")),
+    ]
+
+    for label, val in fields:
+        draw.text((60, y), f"{label}:", fill=(100, 100, 100), font=label_font)
+        draw.text((220, y), str(val), fill=(0, 0, 0), font=val_font)
+        y += 45
+
+    # Description
+    draw.text((60, y), "FIR Contents / Description:", fill=(100, 100, 100), font=label_font)
+    y += 30
+    desc = fir_data.get("description", "")
+    # Simple text wrapping
+    words = desc.split()
+    line = ""
+    for word in words:
+        if len(line + word) < 70:
+            line += word + " "
+        else:
+            draw.text((60, y), line, fill=(0, 0, 0), font=val_font)
+            y += 25
+            line = word + " "
+    draw.text((60, y), line, fill=(0, 0, 0), font=val_font)
+
+    # Footer
+    draw.text((width-200, height-100), "Officer Signature", fill=(0, 0, 0), font=label_font)
+    draw.line([width-250, height-110, width-50, height-110], fill=(0, 0, 0), width=1)
+
+    filename = f"fir_card_{uuid.uuid4().hex[:8]}.png"
+    save_path = os.path.join("app", "static", "uploads", filename)
+    img.save(save_path)
+    return f"uploads/{filename}"
 
 
 def is_authenticated(request: Request) -> bool:
@@ -1208,49 +1280,21 @@ def create_fir(
     current_fir_no = fir_number if entry_method == "manual" else (fir_number_upload or "")
 
     # ── OCR extraction for upload mode ──
-    ocr_text = ""
+    ocr_results = None
     if entry_method == "upload" and fir_image and fir_image.filename:
-        try:
-            import re, tempfile, pytesseract
-            pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
-            from PIL import Image as PILImage
-            img_bytes = fir_image.file.read()
-            fir_image.file.seek(0)  # reset so save below still works
-            with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(fir_image.filename)[1]) as tmp:
-                tmp.write(img_bytes)
-                tmp_path = tmp.name
-            pil_img = PILImage.open(tmp_path)
-            w, h = pil_img.size
-            if w < 1200:
-                scale = 1200 / w
-                pil_img = pil_img.resize((int(w * scale), int(h * scale)), PILImage.LANCZOS)
-            ocr_text = pytesseract.image_to_string(pil_img, lang="eng")
-            os.unlink(tmp_path)
-        except Exception:
-            ocr_text = ""
+        img_bytes = fir_image.file.read()
+        fir_image.file.seek(0)
+        ocr_results, error = _perform_ocr(img_bytes)
 
-    if entry_method == "upload" and ocr_text:
-        import re
-        if not current_fir_no:
-            m = re.search(r"(?:FIR|F\.I\.R)[^0-9A-Z]*([A-Z0-9/\-]{4,20})", ocr_text, re.IGNORECASE)
-            if m: current_fir_no = m.group(1).strip()
-        if not incident_date:
-            m = re.search(r"(?:Date|Dt)[^\d]*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})", ocr_text, re.IGNORECASE)
-            if m: incident_date = m.group(1).strip()
-        if not district:
-            m = re.search(r"District\s*[:\-]?\s*([A-Za-z ]{3,30})", ocr_text, re.IGNORECASE)
-            if m: district = m.group(1).strip()
-        if not station_name:
-            m = re.search(r"(?:Police Station|P\.S\.|Station)\s*[:\-]?\s*([A-Za-z ]{3,40})", ocr_text, re.IGNORECASE)
-            if m: station_name = m.group(1).strip()
-        if not complainant_name:
-            m = re.search(r"(?:Complainant|Reported by)\s*[:\-]?\s*([A-Za-z ]{3,50})", ocr_text, re.IGNORECASE)
-            if m: complainant_name = m.group(1).strip()
-        if not location_text:
-            m = re.search(r"(?:Place of Occurrence|Place|Location)\s*[:\-]?\s*([A-Za-z0-9 ,\.]{5,80})", ocr_text, re.IGNORECASE)
-            if m: location_text = m.group(1).strip()
-        if not description:
-            description = ocr_text[:2000]
+    if entry_method == "upload" and ocr_results:
+        if not current_fir_no: current_fir_no = ocr_results.get("fir_number")
+        if not incident_date: incident_date = ocr_results.get("incident_date")
+        if not district: district = ocr_results.get("district")
+        if not station_name: station_name = ocr_results.get("station_name")
+        if not complainant_name: complainant_name = ocr_results.get("complainant_name")
+        if not location_text: location_text = ocr_results.get("location_text")
+        if not description: description = ocr_results.get("description")
+        if not legal_section: legal_section = ocr_results.get("legal_section")
 
     if not current_fir_no:
         current_fir_no = f"FIR-OCR-{uuid.uuid4().hex[:8].upper()}"
@@ -1295,6 +1339,21 @@ def create_fir(
     # Save uploaded image (file pointer already reset above)
     classification = classify_crime_type(description=final_description, legal_section=legal_section)
 
+    if entry_method == "manual" and not image_path:
+        # Generate visual card for manual entry
+        image_path = generate_fir_card({
+            "fir_number": current_fir_no,
+            "station_name": final_station,
+            "district": final_district,
+            "incident_date": parsed_date,
+            "incident_time": parsed_time,
+            "complainant_name": complainant_name,
+            "location_text": location_text,
+            "legal_section": legal_section,
+            "crime_type": classification["crime_type"],
+            "description": final_description
+        })
+
     fir = FIR(
         fir_number=current_fir_no, title=final_title, station_name=final_station,
         district=final_district, incident_date=parsed_date, incident_time=parsed_time,
@@ -1302,11 +1361,139 @@ def create_fir(
         priority=priority or classification["priority"], status=status,
         complainant_name=complainant_name, accused_name=accused_name,
         location_text=location_text, description=final_description,
-        raw_fir_text=raw_fir_text, evidence_summary=evidence_summary,
+        raw_fir_text=raw_fir_text or (ocr_text if entry_method == "upload" else ""), 
+        evidence_summary=evidence_summary,
         image_path=image_path, tags=classification["tags"],
+        source_type=entry_method,
+        is_verified=1 if entry_method == "manual" else 0  # Manual entry is considered verified by default
     )
     db.add(fir); db.commit(); db.refresh(fir)
     return RedirectResponse("/firs", status_code=303)
+
+# --- SHARED OCR HELPER ---
+def _perform_ocr(img_bytes: bytes):
+    try:
+        import pytesseract, re
+        pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+        
+        nparr = np.frombuffer(img_bytes, np.uint8)
+        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        if img is None: return None, "Invalid image format"
+
+        # 1. Preprocessing
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        h, w = gray.shape
+        target_w = 2200
+        if w < target_w:
+            scale = target_w / w
+            gray = cv2.resize(gray, (int(w*scale), int(h*scale)), interpolation=cv2.INTER_LANCZOS4)
+        
+        denoised = cv2.fastNlMeansDenoising(gray, h=10)
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+        contrast = clahe.apply(denoised)
+        thresh = cv2.adaptiveThreshold(contrast, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
+
+        # 2. OCR
+        custom_config = r'--oem 3 --psm 3 -c preserve_interword_spaces=1'
+        text = pytesseract.image_to_string(thresh, config=custom_config, lang="eng")
+        if len(text.strip()) < 50:
+            text = pytesseract.image_to_string(thresh, config=r'--oem 3 --psm 6', lang="eng")
+        
+        # 3. Helpers for extraction
+        def clean_text(t):
+            t = re.sub(r'[|\\_]', '', t)
+            return re.sub(r'\s+', ' ', t).strip()
+
+        def get_match(patterns, t):
+            for p in patterns:
+                m = re.search(p, t, re.IGNORECASE)
+                if m: return m.group(1).strip()
+            return ""
+
+        def fuzzy_extract(t, keywords, length=50):
+            t_lower = t.lower()
+            best_match = ""
+            for kw in keywords:
+                idx = t_lower.find(kw.lower())
+                if idx != -1:
+                    segment = t[idx + len(kw): idx + len(kw) + length]
+                    segment = re.sub(r'^[:\-\s\.]+', '', segment)
+                    match = segment.split('\n')[0].strip()
+                    if len(match) > len(best_match): best_match = match
+            return best_match
+
+        cleaned_text = clean_text(text)
+        
+        # 4. Extraction
+        extracted = {
+            "fir_number": get_match([
+                r"(?:FIR|F\.I\.R|Crime|Case)\s*(?:No|Number)?[^0-9A-Z]*([A-Z0-9/\-]{3,25})",
+                r"No\.?\s*([A-Z0-9/\-]{4,20})",
+                r"(\d{4,10}/\d{2,4})"
+            ], cleaned_text) or fuzzy_extract(cleaned_text, ["FIR No", "Crime No", "Case No"], 20),
+            
+            "incident_date": get_match([
+                r"(?:Date|Dt|Occurred on|Date of)[^\d]*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})",
+                r"(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})"
+            ], cleaned_text) or fuzzy_extract(cleaned_text, ["Date of Incident", "Date of occurrence", "Date:"], 15),
+            
+            "district": get_match([
+                r"District\s*[:\-]?\s*([A-Za-z ]{3,30})",
+                r"(?:Dist|District)\.?\s*:\s*([A-Za-z ]+)"
+            ], cleaned_text) or fuzzy_extract(cleaned_text, ["District", "Dist."], 25),
+            
+            "station_name": get_match([
+                r"(?:Police Station|P\.S\.|Station)\s*[:\-]?\s*([A-Za-z ]{3,40})",
+                r"P\.S\.\s*[:\-]?\s*([A-Za-z ]+)"
+            ], cleaned_text) or fuzzy_extract(cleaned_text, ["Police Station", "P.S.", "Station:"], 30),
+            
+            "complainant_name": get_match([
+                r"(?:Complainant|Reported by|Informant|Informant's Name)\s*[:\-]?\s*([A-Za-z ]{3,50})",
+                r"Name of (?:the )?Informant\s*:\s*([A-Za-z ]+)"
+            ], cleaned_text) or fuzzy_extract(cleaned_text, ["Complainant Name", "Name of Informant", "Informant:"], 40),
+            
+            "location_text": get_match([
+                r"(?:Place of Occurrence|Place|Location|Address)\s*[:\-]?\s*([A-Za-z0-9 ,\.]{5,120})",
+                r"at\s+([A-Za-z0-9 ,\.]{10,80})"
+            ], cleaned_text) or fuzzy_extract(cleaned_text, ["Place of occurrence", "Location", "Address:"], 60),
+            
+            "accused_name": get_match([
+                r"(?:Accused|Name of Accused)\s*[:\-]?\s*([A-Za-z ]{3,50})",
+                r"Accused\s*:\s*([A-Za-z ]+)"
+            ], cleaned_text) or fuzzy_extract(cleaned_text, ["Name of Accused", "Accused:"], 40) or "Unknown",
+            
+            "legal_section": get_match([
+                r"(?:Section|Sections|U/s)\s*[:\-]?\s*([0-9A-Za-z ,]{2,40})",
+                r"u/s\s+([0-9, ]+)"
+            ], cleaned_text) or fuzzy_extract(cleaned_text, ["Section", "U/s"], 30),
+            
+            "description": text[:4000]
+        }
+        
+        # 5. Crime Type
+        classification = classify_crime_type(description=cleaned_text, legal_section=extracted["legal_section"])
+        extracted["crime_type"] = classification["crime_type"]
+        extracted["weapon_used"] = classification.get("weapon", "")
+        
+        return extracted, None
+    except Exception as e:
+        return None, str(e)
+
+@app.post("/api/ocr-preview")
+async def ocr_preview(request: Request, fir_image: UploadFile = File(...)):
+    """Extracts text from FIR image and returns structured data for review."""
+    if not is_authenticated(request):
+        return JSONResponse(status_code=401, content={"detail": "Unauthorized"})
+    
+    try:
+        img_bytes = await fir_image.read()
+        extracted, error = _perform_ocr(img_bytes)
+        
+        if error:
+            return JSONResponse(status_code=500, content={"error": error})
+        return {"ok": True, "extracted": extracted}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -1329,3 +1516,7 @@ def api_monitoring_stats(request: Request):
     if not is_authenticated(request):
         return JSONResponse(status_code=401, content={"detail": "Unauthorized"})
     return get_monitor_state_snapshot()["telemetry"]
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("app.main:app", host="127.0.0.1", port=8000, reload=True)

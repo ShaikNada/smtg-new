@@ -29,10 +29,19 @@ class FIR(Base):
     accused_name = Column(String(120), nullable=True)
     location_text = Column(String(255), nullable=True)
 
+    # Officer details
+    officer_name = Column(String(120), nullable=True)
+    officer_badge = Column(String(50), nullable=True)
+
     description = Column(Text, nullable=False)
     raw_fir_text = Column(Text, nullable=True)
     evidence_summary = Column(Text, nullable=True)
     image_path = Column(String(255), nullable=True)
     tags = Column(String(255), nullable=True)
+
+    # "manual" or "upload" — determines how the detail modal renders
+    source_type = Column(String(20), nullable=False, default="manual")
+    is_verified = Column(Integer, default=0)
+    extraction_metadata = Column(Text, nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())

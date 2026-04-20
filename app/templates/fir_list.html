@@ -60,12 +60,12 @@
     <table style="width: 100%; border-collapse: collapse; font-size: .84rem;">
         <thead>
             <tr style="border-bottom: 1px solid var(--border-color);">
-                <th style="padding: 13px 18px; text-align: left; color: var(--text-muted); font-size: .7rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;">FIR Number</th>
-                <th style="padding: 13px 18px; text-align: left; color: var(--text-muted); font-size: .7rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;">Incident</th>
-                <th style="padding: 13px 18px; text-align: left; color: var(--text-muted); font-size: .7rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;">District</th>
+                <th style="padding: 13px 18px; text-align: left; color: var(--text-muted); font-size: .7rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;">FIR ID</th>
+                <th style="padding: 13px 18px; text-align: left; color: var(--text-muted); font-size: .7rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;">Date & Location</th>
+                <th style="padding: 13px 18px; text-align: left; color: var(--text-muted); font-size: .7rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;">Complainant</th>
                 <th style="padding: 13px 18px; text-align: left; color: var(--text-muted); font-size: .7rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;">Crime Type</th>
-                <th style="padding: 13px 18px; text-align: left; color: var(--text-muted); font-size: .7rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;">Priority</th>
                 <th style="padding: 13px 18px; text-align: left; color: var(--text-muted); font-size: .7rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;">Status</th>
+                <th style="padding: 13px 18px; text-align: left; color: var(--text-muted); font-size: .7rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;">Verified</th>
                 <th style="padding: 13px 18px; text-align: left; color: var(--text-muted); font-size: .7rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;">Actions</th>
             </tr>
         </thead>
@@ -77,26 +77,35 @@
                 onclick="openFIRModal({{ fir.id }})">
                 <td style="padding: 13px 18px; color: var(--accent-blue); font-weight: 700; font-family: monospace;">{{ fir.fir_number }}</td>
                 <td style="padding: 13px 18px;">
-                    <div style="font-weight: 600; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ fir.title }}</div>
-                    <div style="font-size: .72rem; color: var(--text-muted); margin-top: 2px;">{{ fir.incident_date }} &nbsp;·&nbsp; {{ fir.station_name }}</div>
+                    <div style="font-weight: 600;">{{ fir.incident_date }}</div>
+                    <div style="font-size: .72rem; color: var(--text-muted); margin-top: 2px;">{{ fir.location_text or fir.station_name }}</div>
                 </td>
-                <td style="padding: 13px 18px; color: var(--text-muted);">{{ fir.district }}</td>
-                <td style="padding: 13px 18px; color: var(--text-muted); font-size: .78rem;">{{ fir.crime_type or '—' }}</td>
+                <td style="padding: 13px 18px; color: var(--text-main);">{{ fir.complainant_name or '—' }}</td>
                 <td style="padding: 13px 18px;">
-                    <span style="padding: 3px 10px; border-radius: 5px; font-size: .72rem; font-weight: 700;
-                        {% if fir.priority == 'Critical' %}background:rgba(239,68,68,.18);color:#ef4444;
-                        {% elif fir.priority == 'High' %}background:rgba(245,158,11,.18);color:#f59e0b;
-                        {% elif fir.priority == 'Medium' %}background:rgba(59,130,246,.18);color:#3b82f6;
-                        {% else %}background:rgba(16,185,129,.18);color:#10b981;{% endif %}">
-                        {{ fir.priority }}
+                    <div style="font-size: .84rem;">{{ fir.crime_type or '—' }}</div>
+                    <div style="font-size: .7rem; color: var(--text-muted);">{{ fir.priority }} Priority</div>
+                </td>
+                <td style="padding: 13px 18px;">
+                    <span style="padding: 3px 10px; border-radius: 5px; font-size: .72rem; font-weight: 700; background:rgba(255,255,255,0.07); color: #cbd5e1;">
+                        {{ fir.status }}
                     </span>
                 </td>
-                <td style="padding: 13px 18px; color: var(--text-muted); font-size: .8rem;">{{ fir.status }}</td>
+                <td style="padding: 13px 18px;">
+                    {% if fir.is_verified %}
+                    <span style="color: var(--accent-green); font-size: 0.9rem;" title="Verified Entry">
+                        <i class="fas fa-check-circle"></i>
+                    </span>
+                    {% else %}
+                    <span style="color: var(--text-muted); font-size: 0.9rem; opacity: 0.5;" title="OCR Pending Review">
+                        <i class="fas fa-history"></i>
+                    </span>
+                    {% endif %}
+                </td>
                 <td style="padding: 13px 18px;" onclick="event.stopPropagation()">
                     <div style="display: flex; gap: 8px; align-items: center;">
                         <button onclick="openFIRModal({{ fir.id }})"
                             style="background: rgba(59,130,246,.15); color: #3b82f6; border: none; border-radius: 6px; padding: 6px 10px; cursor: pointer; font-size: .75rem;">
-                            <i class="fas fa-eye"></i>
+                            <i class="fas fa-eye"></i> View
                         </button>
                         <form method="post" action="/firs/{{ fir.id }}/delete" onsubmit="return confirm('Delete FIR {{ fir.fir_number }}? This cannot be undone.');" style="margin:0;">
                             <button type="submit"
@@ -109,7 +118,7 @@
             </tr>
             {% else %}
             <tr>
-                <td colspan="7" style="padding: 50px; text-align: center; color: var(--text-muted);">
+                <td colspan="6" style="padding: 50px; text-align: center; color: var(--text-muted);">
                     <i class="fas fa-folder-open" style="font-size: 2rem; margin-bottom: 12px; display: block; opacity: .4;"></i>
                     No FIR records found{% if q %} for "<strong>{{ q }}</strong>"{% endif %}
                 </td>
@@ -237,7 +246,9 @@
             description: {{ (fir.description or '') | tojson }},
             evidence_summary: {{ (fir.evidence_summary or '') | tojson }},
             tags: {{ (fir.tags or '') | tojson }},
-            image_path: {{ (fir.image_path or '') | tojson }}
+            image_path: {{ (fir.image_path or '') | tojson }},
+            is_verified: {{ fir.is_verified or 0 }},
+            source_type: {{ fir.source_type | tojson }}
         }{% if not loop.last %},{% endif %}
         {% endfor %}
     };
@@ -257,7 +268,18 @@
         if (!f) return;
         document.getElementById('m-fir-no').textContent = f.fir_number;
         document.getElementById('m-title').textContent = f.title;
-        document.getElementById('m-badges').innerHTML = priorityBadge(f.priority) + ' ' + badge(f.status, 'rgba(255,255,255,.07)', '#cbd5e1');
+        
+        let badgesHtml = priorityBadge(f.priority) + ' ' + badge(f.status, 'rgba(255,255,255,.07)', '#cbd5e1');
+        if (f.source_type === 'upload') {
+            badgesHtml += ' ' + badge('OCR', 'rgba(16,185,129,.15)', '#10b981');
+        }
+        if (f.is_verified) {
+            badgesHtml += ' ' + badge('VERIFIED', 'rgba(59,130,246,.15)', '#3b82f6');
+        } else {
+            badgesHtml += ' ' + badge('PENDING REVIEW', 'rgba(239,68,68,.15)', '#ef4444');
+        }
+        
+        document.getElementById('m-badges').innerHTML = badgesHtml;
         document.getElementById('m-station').textContent = f.station_name || '—';
         document.getElementById('m-district').textContent = f.district || '—';
         document.getElementById('m-date').textContent = f.incident_date || '—';

@@ -29,8 +29,7 @@
         <i class="fas fa-file-upload fa-3x" style="color: var(--accent-green); margin-bottom: 20px;"></i>
         <h3 style="font-weight: 700;">Document Image Upload</h3>
         <p style="font-size: 0.85rem; color: var(--text-muted);">
-            Upload a scan or photo of the physical FIR document. OCR will try to extract FIR number, date, district,
-            police station, complainant, place, vehicle/property details and description.
+            Upload a scan or photo of the physical FIR document. OCR will extract details for your review.
         </p>
         <button class="btn-primary-custom"
             style="margin-top: 15px; background: var(--accent-green); pointer-events: none;">Select</button>
@@ -41,56 +40,63 @@
     <input type="hidden" id="entryMethod" name="entry_method" value="manual">
 
     <div style="max-width: 900px; margin: 0 auto;">
-        <div class="chart-container" style="background: var(--secondary-bg);">
-            <div id="formHeader" class="chart-header">Case Details</div>
+        <div class="chart-container" style="background: var(--secondary-bg); padding: 30px;">
+            <div id="formHeader" class="chart-header" style="margin-bottom: 25px; border-bottom: 1px solid var(--border-color); padding-bottom: 15px;">Case Details</div>
 
-            <div id="manualFields">
-                <div style="margin-bottom: 20px;">
-                    <label
-                        style="color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; margin-bottom: 8px; display: block;">FIR
-                        Number</label>
-                    <input type="text" name="fir_number" required placeholder="e.g., FIR-2026-042"
-                        style="width: 100%; background: var(--card-bg); border: 1px solid var(--border-color); color: var(--text-main); border-radius: 8px; padding: 12px;">
-                </div>
-
-                <div style="margin-bottom: 20px;">
-                    <label
-                        style="color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; margin-bottom: 8px; display: block;">Incident
-                        Title</label>
-                    <input type="text" name="title" required placeholder="Short summary of the incident"
-                        style="width: 100%; background: var(--card-bg); border: 1px solid var(--border-color); color: var(--text-main); border-radius: 8px; padding: 12px;">
-                </div>
-
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
-                    <div>
-                        <label
-                            style="color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; margin-bottom: 8px; display: block;">Station
-                            Name</label>
-                        <input type="text" name="station_name" required placeholder="Police Station"
-                            style="width: 100%; background: var(--card-bg); border: 1px solid var(--border-color); color: var(--text-main); border-radius: 8px; padding: 12px;">
+            <!-- Upload Section (Initial step for Upload mode) -->
+            <div id="uploadStep" style="display: none; margin-bottom: 30px;">
+                <div class="dropzone" onclick="document.getElementById('fir_image').click()" id="dropzoneContent" style="border: 2px dashed var(--border-color); padding: 40px; border-radius: 12px; text-align: center; cursor: pointer; transition: all 0.3s;">
+                    <i class="fas fa-cloud-upload-alt fa-3x" style="color: var(--accent-blue); margin-bottom: 15px;"></i>
+                    <div style="font-weight: 600; font-size: 1.1rem; margin-bottom: 5px;">Upload FIR Document Image</div>
+                    <div style="font-size: 0.8rem; color: var(--text-muted);">PNG, JPG, JPEG (Max 5MB)</div>
+                    <input type="file" id="fir_image" name="fir_image" style="display: none;" accept="image/*" onchange="handleOCR(this)">
+                    
+                    <div id="ocrStatus" style="display: none; margin-top: 20px;">
+                        <div class="spinner" style="border: 4px solid rgba(255,255,255,0.1); border-left-color: var(--accent-blue); border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 0 auto 10px;"></div>
+                        <div style="font-size: 0.9rem; color: var(--accent-blue);">Analyzing document with OCR...</div>
                     </div>
-                    <div>
-                        <label
-                            style="color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; margin-bottom: 8px; display: block;">District</label>
-                        <input type="text" name="district" required placeholder="District Name"
-                            style="width: 100%; background: var(--card-bg); border: 1px solid var(--border-color); color: var(--text-main); border-radius: 8px; padding: 12px;">
+
+                    <div id="previewContainer" style="display: none; margin-top: 20px;">
+                        <img id="image_preview" src="" style="max-width: 100%; border-radius: 8px; border: 1px solid var(--border-color); max-height: 300px; object-fit: contain;">
+                        <div style="margin-top: 10px; font-size: 0.8rem; color: var(--accent-green);">
+                            <i class="fas fa-check-circle"></i> OCR Extraction Complete. Review details below.
+                        </div>
                     </div>
                 </div>
+            </div>
 
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+            <!-- This section will be shown for BOTH manual and OCR review -->
+            <div id="editableFields">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
                     <div>
-                        <label
-                            style="color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; margin-bottom: 8px; display: block;">Incident
-                            Date</label>
-                        <input type="date" name="incident_date" required
-                            style="width: 100%; background: var(--card-bg); border: 1px solid var(--border-color); color: var(--text-main); border-radius: 8px; padding: 12px;">
+                        <label class="form-label">FIR Number</label>
+                        <input type="text" name="fir_number" id="f_fir_no" required placeholder="e.g., FIR-2026-042" class="form-input">
                     </div>
                     <div>
-                        <label
-                            style="color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; margin-bottom: 8px; display: block;">Priority
-                            Level</label>
-                        <select name="priority"
-                            style="width: 100%; background: var(--card-bg); border: 1px solid var(--border-color); color: var(--text-main); border-radius: 8px; padding: 12px;">
+                        <label class="form-label">Incident Title</label>
+                        <input type="text" name="title" id="f_title" required placeholder="Short summary" class="form-input">
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                    <div>
+                        <label class="form-label">Police Station</label>
+                        <input type="text" name="station_name" id="f_station" required placeholder="Station Name" class="form-input">
+                    </div>
+                    <div>
+                        <label class="form-label">District</label>
+                        <input type="text" name="district" id="f_district" required placeholder="District Name" class="form-input">
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                    <div>
+                        <label class="form-label">Incident Date</label>
+                        <input type="date" name="incident_date" id="f_date" required class="form-input">
+                    </div>
+                    <div>
+                        <label class="form-label">Priority Level</label>
+                        <select name="priority" id="f_priority" class="form-input">
                             <option value="Low">Low</option>
                             <option value="Medium" selected>Medium</option>
                             <option value="High">High</option>
@@ -99,64 +105,59 @@
                     </div>
                 </div>
 
-                <div style="margin-bottom: 20px;">
-                    <label
-                        style="color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; margin-bottom: 8px; display: block;">Detailed
-                        Description</label>
-                    <textarea name="description" required rows="4" placeholder="Enter full details of the incident..."
-                        style="width: 100%; background: var(--card-bg); border: 1px solid var(--border-color); color: var(--text-main); border-radius: 8px; padding: 12px;"></textarea>
-                </div>
-            </div>
-
-            <div id="uploadFields" style="display: none;">
-                <div style="margin-bottom: 20px;">
-                    <label
-                        style="color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; margin-bottom: 8px; display: block;">
-                        FIR Number (Optional override)
-                    </label>
-                    <input type="text" id="upload_fir_no" name="fir_number_upload"
-                        placeholder="Leave blank to let OCR detect FIR number"
-                        style="width: 100%; background: var(--card-bg); border: 1px solid var(--border-color); color: var(--text-main); border-radius: 8px; padding: 12px;">
-                </div>
-
-                <div class="dropzone" onclick="document.getElementById('fir_image').click()" id="dropzoneContent">
-                    <i class="fas fa-cloud-upload-alt fa-3x"
-                        style="color: var(--accent-blue); margin-bottom: 15px;"></i>
-                    <div style="font-weight: 600; font-size: 1.1rem; margin-bottom: 5px;">Upload FIR Document Image
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                    <div>
+                        <label class="form-label">Complainant Name</label>
+                        <input type="text" name="complainant_name" id="f_complainant" placeholder="Full Name" class="form-input">
                     </div>
-                    <div style="font-size: 0.8rem; color: var(--text-muted);">PNG, JPG, JPEG (Max 5MB)</div>
-                    <input type="file" id="fir_image" name="fir_image" style="display: none;" accept="image/*"
-                        onchange="previewImage(this)">
-
-                    <div id="previewContainer" style="display: none; margin-top: 20px;">
-                        <img id="image_preview" src="" class="fir-image-preview">
+                    <div>
+                        <label class="form-label">Accused Name</label>
+                        <input type="text" name="accused_name" id="f_accused" placeholder="Full Name or Unknown" class="form-input">
                     </div>
                 </div>
 
-                <div style="margin-top: 20px; font-size: 0.85rem; color: var(--text-muted); line-height: 1.6;">
-                    <i class="fas fa-info-circle"></i>
-                    OCR will try to extract:
-                    FIR No, FIR Date, District, Police Station, Complainant, Address, Place of Occurrence,
-                    Property / Vehicle details, estimated value, and FIR contents.
-                    <br><br>
-                    <strong>Tip:</strong> Upload a clear straight image with good lighting and minimum shadow for better
-                    extraction.
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                    <div>
+                        <label class="form-label">Location / Address</label>
+                        <input type="text" name="location_text" id="f_location" placeholder="Place of occurrence" class="form-input">
+                    </div>
+                    <div>
+                        <label class="form-label">Legal Section(s)</label>
+                        <input type="text" name="legal_section" id="f_section" placeholder="e.g. 302, 379 IPC" class="form-input">
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 20px;">
+                    <label class="form-label">Crime Type (Detected)</label>
+                    <input type="text" name="crime_type" id="f_crime_type" placeholder="e.g. Theft, Assault" class="form-input" style="border-left: 4px solid var(--accent-blue);">
+                </div>
+
+                <div style="margin-bottom: 20px;">
+                    <label class="form-label">Detailed Description / FIR Contents</label>
+                    <textarea name="description" id="f_description" required rows="6" placeholder="Enter full FIR text here..." class="form-input" style="resize: vertical;"></textarea>
                 </div>
             </div>
 
             <div style="display: flex; gap: 15px; margin-top: 30px;">
-                <button type="submit" class="btn-primary-custom"
-                    style="padding: 15px 40px; font-size: 1.1rem; flex: 1;">
+                <button type="submit" id="saveBtn" class="btn-primary-custom" style="padding: 15px 40px; font-size: 1.1rem; flex: 1;">
                     <i class="fas fa-save"></i> Save FIR Case
                 </button>
-                <button type="button" onclick="resetMode()"
-                    style="background: var(--card-bg); color: var(--text-muted); padding: 15px 20px; border-radius: 8px; cursor: pointer; border: 1px solid var(--border-color);">
-                    Back
+                <button type="button" onclick="resetMode()" style="background: var(--card-bg); color: var(--text-muted); padding: 15px 20px; border-radius: 8px; cursor: pointer; border: 1px solid var(--border-color);">
+                    Cancel
                 </button>
             </div>
         </div>
     </div>
 </form>
+
+<style>
+    .form-label { color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; margin-bottom: 8px; display: block; font-weight: 600; letter-spacing: 0.5px; }
+    .form-input { width: 100%; background: var(--card-bg); border: 1px solid var(--border-color); color: var(--text-main); border-radius: 8px; padding: 12px; box-sizing: border-box; font-size: 0.9rem; transition: border-color 0.2s; }
+    .form-input:focus { outline: none; border-color: var(--accent-blue); }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .dropzone:hover { border-color: var(--accent-blue) !important; background: rgba(59, 130, 246, 0.05); }
+    .spinner { border: 4px solid rgba(255,255,255,0.1); border-left-color: var(--accent-blue); border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 0 auto 10px; }
+</style>
 
 <script>
     function setMode(mode) {
@@ -164,52 +165,108 @@
         document.getElementById('firForm').style.display = 'block';
         document.getElementById('entryMethod').value = mode;
 
-        const manualFields = document.getElementById('manualFields');
-        const uploadFields = document.getElementById('uploadFields');
+        const uploadStep = document.getElementById('uploadStep');
+        const editableFields = document.getElementById('editableFields');
         const header = document.getElementById('formHeader');
-
-        const manualInputs = manualFields.querySelectorAll('input, textarea');
-        const uploadInput = document.getElementById('upload_fir_no');
-        const uploadImage = document.getElementById('fir_image');
+        const saveBtn = document.getElementById('saveBtn');
 
         if (mode === 'manual') {
-            manualFields.style.display = 'block';
-            uploadFields.style.display = 'none';
-            header.innerText = "Manual Data Entry Details";
-
-            manualInputs.forEach(i => i.setAttribute('required', ''));
-            uploadInput.removeAttribute('required');
-            uploadImage.removeAttribute('required');
+            uploadStep.style.display = 'none';
+            editableFields.style.display = 'block';
+            header.innerText = "Manual Data Entry";
+            saveBtn.innerHTML = '<i class="fas fa-save"></i> Save & Generate FIR Card';
+            saveBtn.style.display = 'flex';
         } else {
-            manualFields.style.display = 'none';
-            uploadFields.style.display = 'block';
-            header.innerText = "Document Image Upload";
+            uploadStep.style.display = 'block';
+            editableFields.style.display = 'none'; // Hide until OCR is done
+            header.innerText = "OCR Document Upload";
+            saveBtn.style.display = 'none'; // Hide until OCR is done
+        }
+    }
 
-            manualInputs.forEach(i => i.removeAttribute('required'));
-            uploadInput.removeAttribute('required');
-            uploadImage.setAttribute('required', '');
+    async function handleOCR(input) {
+        if (!input.files || !input.files[0]) return;
+
+        const ocrStatus = document.getElementById('ocrStatus');
+        const previewContainer = document.getElementById('previewContainer');
+        const previewImg = document.getElementById('image_preview');
+        const editableFields = document.getElementById('editableFields');
+        const saveBtn = document.getElementById('saveBtn');
+
+        // Show loading
+        ocrStatus.style.display = 'block';
+        previewContainer.style.display = 'none';
+        
+        // Preview image
+        const reader = new FileReader();
+        reader.onload = e => { 
+            previewImg.src = e.target.result;
+            previewContainer.style.display = 'block';
+        };
+        reader.readAsDataURL(input.files[0]);
+
+        // OCR API Call
+        const formData = new FormData();
+        formData.append('fir_image', input.files[0]);
+
+        try {
+            const resp = await fetch('/api/ocr-preview', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await resp.json();
+
+            if (data.ok) {
+                // Populate fields
+                const f = data.extracted;
+                document.getElementById('f_fir_no').value = f.fir_number || '';
+                
+                // Format date for input[type=date] if it matches d-m-y or similar
+                if (f.incident_date) {
+                    // Try to parse common formats to YYYY-MM-DD
+                    const parts = f.incident_date.split(/[/-]/);
+                    if (parts.length === 3) {
+                        if (parts[0].length === 4) { // YYYY-MM-DD
+                            document.getElementById('f_date').value = `${parts[0]}-${parts[1].padStart(2,'0')}-${parts[2].padStart(2,'0')}`;
+                        } else if (parts[2].length === 4) { // DD-MM-YYYY
+                            document.getElementById('f_date').value = `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
+                        }
+                    }
+                }
+
+                document.getElementById('f_district').value = f.district || '';
+                document.getElementById('f_station').value = f.station_name || '';
+                document.getElementById('f_complainant').value = f.complainant_name || '';
+                document.getElementById('f_accused').value = f.accused_name || '';
+                document.getElementById('f_location').value = f.location_text || '';
+                document.getElementById('f_section').value = f.legal_section || '';
+                document.getElementById('f_crime_type').value = f.crime_type || '';
+                document.getElementById('f_description').value = f.description || '';
+                document.getElementById('f_title').value = f.fir_number ? `Case: ${f.fir_number}` : 'OCR Extracted Case';
+
+                // Show fields for review
+                editableFields.style.display = 'block';
+                saveBtn.style.display = 'flex';
+                saveBtn.innerHTML = '<i class="fas fa-check-double"></i> Verify & Save Case';
+            } else {
+                alert("OCR Error: " + (data.error || "Failed to extract text"));
+            }
+        } catch (err) {
+            console.error(err);
+            alert("Network error during OCR processing.");
+        } finally {
+            ocrStatus.style.display = 'none';
         }
     }
 
     function resetMode() {
         document.getElementById('selectionMode').style.display = 'grid';
         document.getElementById('firForm').style.display = 'none';
-    }
-
-    function previewImage(input) {
-        const container = document.getElementById('previewContainer');
-        const preview = document.getElementById('image_preview');
-        const dropzone = document.getElementById('dropzoneContent');
-
-        if (input.files && input.files[0]) {
-            const reader = new FileReader();
-            reader.onload = function (e) {
-                preview.src = e.target.result;
-                container.style.display = 'block';
-                dropzone.style.borderColor = 'var(--accent-blue)';
-            }
-            reader.readAsDataURL(input.files[0]);
-        }
+        // Reset form
+        document.getElementById('firForm').reset();
+        document.getElementById('previewContainer').style.display = 'none';
+        document.getElementById('editableFields').style.display = 'block';
+        document.getElementById('saveBtn').style.display = 'flex';
     }
 </script>
 {% endblock %}

@@ -12,7 +12,9 @@ columns_to_add = [
     ("weapon_used", "VARCHAR(120)"),
     ("victim_age", "INTEGER"),
     ("victim_gender", "VARCHAR(10)"),
-    ("reported_at", "DATETIME")
+    ("reported_at", "DATETIME"),
+    ("is_verified", "INTEGER DEFAULT 0"),
+    ("extraction_metadata", "TEXT")
 ]
 
 db_path = 'ciris.db'
